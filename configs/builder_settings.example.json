@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "Workflow",
+      "Read(//home/you/nolimit-arena/events/**)",
+      "Read(//home/you/nolimit-workspaces/mini-001/b01/**)",
+      "Read(//home/you/nolimit-workspaces/mini-001/b02/**)",
+      "Read(//home/you/nolimit-workspaces/mini-001/b40/**)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "filesystem": {
+      "denyRead": [
+        "/home/you/nolimit-workspaces/",
+        "/home/you/nolimit-arena/events/"
+      ],
+      "allowRead": [
+        "/home/you/nolimit-workspaces/mini-001/b07/"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "strictAllowlist": true
+    },
+    "credentials": {
+      "envVars": [
+        { "name": "ANTHROPIC_API_KEY", "mode": "deny" }
+      ],
+      "files": [
+        { "path": "~/.ssh", "mode": "deny" },
+        { "path": "~/.aws", "mode": "deny" }
+      ]
+    }
+  }
+}

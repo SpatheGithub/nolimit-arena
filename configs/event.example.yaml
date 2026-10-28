@@ -1,0 +1,59 @@
+# Mini-event configuration. Copy to configs/event.yaml and edit.
+# (real)   = mirrors the official No Limit format
+# (scaled) = compressed for a 20-minute build
+# (sim)    = arena choice where the official rules are silent
+
+event:
+  name: mini-001
+  seed: null                    # null = random; set an int to replay an event exactly
+
+builders:
+  count: 40
+  models:                       # aliases accepted by `claude --model`; counts must sum to builders.count
+    sonnet: 40                  # example mix for a model comparison: {sonnet: 32, opus: 8}
+  archetypes: assign_half       # none | assign_half | assign_all  (configs/archetypes.yaml)
+  launch_stagger_seconds: 2     # spreads out the initial burst of API requests
+  max_budget_usd_per_builder: null   # passed as --max-budget-usd when set
+
+auth:
+  mode: api_key                 # api_key: builders run with --bare (needs ANTHROPIC_API_KEY)
+                                # subscription: no --bare; usage draws on your Claude plan
+
+schedule:
+  build_minutes: 20             # (scaled) real: 60
+  submit_cooldown_seconds: 120  # (scaled) real: one per 5 minutes
+  tournaments: 6                # (real) T1..T6 weighted 1..6; set 1 for a cheap event with no patch rounds
+  patch_minutes: 7              # (scaled) real: 20 minutes between tournaments; 0 = no patch rounds
+  feedback: own_stats_and_sample_hands   # leaderboard_only | own_stats | own_stats_and_sample_hands
+
+table:
+  seats: 8                      # (real)
+  starting_stack: 2000          # (real)
+  hand_cap: 200                 # (real)
+  blinds:
+    start: [10, 20]             # (real)
+    level_every_hands: 25       # (real)
+    schedule: random            # (sim) random | doubling | sng_standard | slow | explicit list of [sb, bb] or [sb, bb, ante]
+  points: random                # (sim) random | flat | standard | top_heavy | winner_take_most | castle | list of 8 numbers
+
+variant: random                 # (sim) random | nlhe | shortdeck | plo | pineapple | crazy_pineapple | royal | twist
+variant_pool: [nlhe, shortdeck, plo, crazy_pineapple, royal, twist]
+
+tournament:
+  iterations: 400               # (sim) real: 10,000; each iteration seats every bot once
+  decision_limit_ms: 1.0        # (real)
+  timing: thread_cpu            # (sim) thread_cpu | wall
+  hang_watchdog_ms: 50          # (sim) wall-clock cap that interrupts a hung decision
+  init_limit_s: 2               # (sim) Agent.__init__ per table
+  import_limit_s: 30            # (sim) module import, once per worker (static tables load here)
+  workers: auto                 # auto = physical cores - 1
+  bot_size_limit_mb: 100        # (real)
+  allowed_packages: [numpy]     # (sim) besides the standard library
+
+kit:
+  localsim_max_tables: 200      # per run; 40 builders share the machine
+  localsim_max_seconds: 60
+
+paths:
+  workspaces_root: ~/nolimit-workspaces   # must be OUTSIDE this repo
+  events_root: events                     # referee-only data inside the repo (gitignored)

@@ -1,0 +1,35 @@
+# Strategy directions handed to some builders so the field isn't a monoculture.
+# builders.archetypes = assign_half gives these to half the builders (round-robin, shuffled);
+# the rest choose freely. Reports compare archetypes against each other and against free choice.
+
+- id: tag_buckets
+  name: Tight-aggressive with strength buckets
+  description: Bucket hands by strength for each street and play a disciplined tight-aggressive game with a few simple sizing rules.
+
+- id: equity_tables
+  name: Precomputed equity
+  description: Spend the build phase precomputing equities for today's variant (preflop tables, coarse postflop features) and decide from lookups and pot odds.
+
+- id: pushfold_icm
+  name: ICM-aware push/fold
+  description: Be excellent when stacks are short. Make shove/fold decisions informed by ICM and the points table, and play a simple game when stacks are deep.
+
+- id: opponent_model
+  name: In-table opponent modeling
+  description: Track each anonymous seat's tendencies during the table (how often it enters pots, raises, folds to pressure) and exploit them. Never carry anything across tables.
+
+- id: pressure
+  name: Aggressive pressure
+  description: Win chips without showdowns. Steal blinds, push on cautious opponents near pay jumps, and choose sizes that force hard decisions.
+
+- id: survival
+  name: Survival and points-table play
+  description: Maximize expected points rather than chips. Avoid marginal all-ins when ICM pressure is high, and climb places as others bust.
+
+- id: mixed_strategy
+  name: Hard-to-exploit mixed strategy
+  description: Use balanced frequencies and randomized actions (with your own RNG) so opponents who model you gain little.
+
+- id: minimal_robust
+  name: Minimal and robust
+  description: Submit the simplest bot that never times out or crashes, then improve it only through measured local tests.
