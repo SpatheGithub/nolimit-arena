@@ -8,7 +8,8 @@ Build an arena in this repository that:
 
 1. faithfully simulates the format of **No Limit**, the Sequoia × Citadel Securities × OpenAI pokerbot tournament;
 2. runs **mini-events** in which N independent Claude Code builders (default 40) each get a hard build window (default 20 minutes) to write a bot from scratch, followed by scored tournaments and short patch rounds;
-3. scores, explains and archives every event, so a human team can learn what wins before the real competition.
+3. scores, explains and archives every event, so a human team can learn what wins before the real competition;
+4. profiles the field of quickly built bots for leaks our bot can exploit, and lets us test exploits against every archived bot (`docs/FIELD_STUDY.md`).
 
 Priorities, in order:
 
@@ -24,6 +25,7 @@ Priorities, in order:
 - `docs/BUILDER_BRIEF.md`: the per-builder brief, a template you render.
 - `docs/PATCH_PROMPT.md`: what builders are told between tournaments.
 - `docs/ANALYST_PROMPT.md`: the post-event debrief.
+- `docs/FIELD_STUDY.md`: why we run the arena (what wins, and where quickly built bots leak), with added requirements for milestones 2, 4, 6 and 7.
 - `configs/event.example.yaml`: every tunable, with its default.
 - `configs/archetypes.yaml`: strategy directions for builder diversity.
 - `configs/builder_settings.example.json`: the Claude Code settings one builder runs under.
@@ -415,11 +417,14 @@ If the sandbox can't run on this machine, stop and tell me; don't fall back sile
    - Determinism test: identical results with 1 and with N workers.
    - Fault-injection tests with bots that hang, crash, return illegal actions or exceed the limit.
    - The 40×400 benchmark.
+   - The bot zoo and per-decision hand-log features from `docs/FIELD_STUDY.md`.
 3. **Starter kit.** clock, submit, check_bot, localsim and the template, tested inside a temp workspace under the builder sandbox settings.
 4. **Referee with mock builders.** A 40-builder mock event with 3 tournaments and patch rounds, at `--time-scale 0.05`, that:
    - completes;
    - survives a forced crash and resumes;
    - produces the report.
+
+   Also the bot archive and the `gauntlet` command from `docs/FIELD_STUDY.md`.
 5. **Real smoke test.** 2 real builders, a 4-minute build and 1 tournament, plus the isolation proof.
    - Report per-builder cost and wall-clock behavior.
    - Estimate the cost of a 40-builder, 6-tournament event at the default settings.
@@ -427,6 +432,7 @@ If the sandbox can't run on this machine, stop and tell me; don't fall back sile
 6. **Variants and libraries.** Variant library, twist generator, points and blind libraries and the EVENT.md renderer, each with tests.
 7. **Debrief and handover.**
    - The debrief command and `LESSONS.md`.
+   - The field profile and exploit board in REPORT.md, and the leak sections of the debrief (`docs/FIELD_STUDY.md`).
    - Rewrite `README.md` as the operator's manual: setup, auth choices, hardware guidance, running an event and troubleshooting.
 
 ## Definition of done

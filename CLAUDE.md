@@ -2,6 +2,8 @@
 
 This repo is a local arena that simulates the No Limit pokerbot tournament and runs mini-events with many Claude Code builders.
 
+**Purpose:** find what wins, and where quickly built, AI-assisted bots leak points that our bot can exploit (`docs/FIELD_STUDY.md`).
+
 - **Build plan:** `SETUP_PROMPT.md`
 - **Spec:** `docs/`
 - **Defaults:** `configs/`

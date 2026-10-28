@@ -33,3 +33,7 @@
 - id: minimal_robust
   name: Minimal and robust
   description: Submit the simplest bot that never times out or crashes, then improve it only through measured local tests.
+
+- id: field_exploiter
+  name: Exploit a field of quickly built bots
+  description: Expect opponents built in a hurry that fold too much to pressure, ignore stack depth and the points table, and call too wide with made hands. Get a sound baseline accepted first, then add in-table detection of these leaks and adjust only when a seat shows them.
