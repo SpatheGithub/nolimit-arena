@@ -73,6 +73,13 @@ def test_event_status_shows_builders_between_tournaments(tmp_path):
     (ev / "state.json").write_text(json.dumps({**state, "phase": "patch:1"}))
     st = event_status(str(ev))
     assert st["label"] == "Patch window before T2" and [r["team"] for r in st["leaderboard"]["rows"]] == ["b01", "b02"]
+    assert not st["paused"]
+    state = json.loads((ev / "state.json").read_text())
+    (ev / "state.json").write_text(json.dumps({**state, "referee_pid": 2 ** 22 + 12345}))  # no such process
+    stalled = event_status(str(ev))
+    assert "referee isn't running" in stalled["paused"] and stalled["builders"][0]["status"] == "paused"
+    (ev / "state.json").write_text(json.dumps({**state, "referee_pid": os.getpid()}))
+    assert not event_status(str(ev))["paused"]
     (tmp_path / "events" / "older").mkdir()
     (tmp_path / "events" / "older" / "state.json").write_text("{}")
     os.utime(tmp_path / "events" / "older" / "state.json", (now - 999, now - 999))

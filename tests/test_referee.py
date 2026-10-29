@@ -234,6 +234,33 @@ def test_usage_limit_pause_waits_for_the_reset_and_keeps_the_time_left(tmp_path,
     assert referee_main.run(ev, mock=False, time_scale=1.0) == 2
 
 
+def test_usage_limit_pauses_from_the_first_refusal(tmp_path, monkeypatch):
+    # 2.1.300 crash: note("paused", kind=...) collided with note's own `kind`, so the pause was never saved
+    ev = Event.new(config(tmp_path, "refused", builders={"count": 3, "models": {"sonnet": 3}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    now = time.time()
+    ev.state["windows"] = [{"kind": "build", "k": 0, "start": now - 1800, "end": now + 600}]
+    refused = json.dumps({"type": "rate_limit_event", "rate_limit_info": {
+        "status": "rejected", "resetsAt": now + 3600, "rateLimitType": "five_hour"}})
+    os.makedirs(ev.p("logs"), exist_ok=True)
+    for i, team in enumerate(("b01", "b02")):  # refused 40 s and 25 s before the referee looks
+        path = ev.p("logs", f"{team}.jsonl")
+        with open(path, "w") as f:
+            f.write(refused + "\n")
+        os.utime(path, (now - 40 + 15 * i, now - 40 + 15 * i))
+    monkeypatch.setattr(ev, "_alive", lambda team: False)
+    monkeypatch.setattr(ev, "_stop_all", lambda: None)
+    with pytest.raises(Paused):
+        ev._check_failures()
+    assert ev.state["pause_kind"] == "usage_limit" and ev.state["resets_at"] == pytest.approx(now + 3600)
+    assert ev.state["paused_at"] == pytest.approx(now - 40, abs=1)  # not when the referee noticed
+    assert json.load(open(ev.p("state.json")))["paused"]  # saved, so a restart resumes it
+    assert ev.state["events"][-1]["kind"] == "paused" and ev.state["events"][-1]["cause"] == "usage_limit"
+    ev.resume_paused()
+    w = ev.state["windows"][-1]
+    assert w["end"] - w["start"] == pytest.approx(640, abs=2)  # the 10 min 40 s left at the first refusal
+
+
 def run_referee(args, events_root, **kw):
     env = {**os.environ, "ARENA_EVENTS_ROOT": events_root, "PYTHONPATH": REPO}
     return subprocess.Popen([sys.executable, "-m", "arena.referee", *args], cwd=REPO, env=env,

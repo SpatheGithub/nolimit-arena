@@ -22,6 +22,7 @@ waits for the reset and carries on with the time the window had left
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import time
@@ -45,6 +46,8 @@ def start_viewer(ev: Event) -> None:
 
 
 def run(ev: Event, mock: bool, time_scale: float) -> int:
+    ev.state["referee_pid"] = os.getpid()  # the live viewer shows when the referee isn't running
+    ev.save()
     while True:
         if ev.state.get("paused"):
             print(f"resuming a paused event ({ev.state['paused']}); the window continues with the time it had left",

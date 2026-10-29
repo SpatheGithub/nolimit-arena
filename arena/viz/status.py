@@ -100,6 +100,11 @@ def event_status(ev_dir: str) -> dict:
     kind, _, k = state.get("phase", "created").partition(":")
     window = (state.get("windows") or [None])[-1]
     in_window = kind in ("build", "patch") and window is not None and now < window["end"]
+    referee = state.get("referee_pid")
+    if not state.get("paused") and kind not in ("created", "done") and referee and not _alive(referee):
+        # a crashed or stopped referee: no clock is running, whatever the window says
+        state["paused"] = (f"the referee isn't running; `python -m arena.referee run "
+                           f"{os.path.basename(os.path.normpath(ev_dir))}` continues the event")
     meter, meter_mtime = None, -1.0
     builders = []
     for t in teams:

@@ -399,15 +399,20 @@ class Event:
             if s["errors"] or (not self._alive(t.team) and s["events_since"] == 0):
                 bad.append(t.team)
         if len(bad) > 0.2 * len(self.teams):
-            self._stop_all()
             streams = [self.stream(team) for team in bad]
             usage = any("usage_limit" in s["errors"] for s in streams)
+            paused_at = time.time()
+            if usage:  # the limit stops every builder at once: the clock stops when the first was refused
+                logs = [self.p("logs", f"{team}.jsonl") for team in bad]
+                first = min([paused_at, *(os.path.getmtime(p) for p in logs if os.path.exists(p))])
+                paused_at = max(first, self.state["windows"][-1]["start"]) if self.state.get("windows") else first
+            self._stop_all()
             self.state.update(
                 paused=(f"the plan's usage limit stopped {len(bad)} of {len(self.teams)} builders" if usage else
                         f"{len(bad)} of {len(self.teams)} builders failed to start or hit auth/usage errors"),
-                paused_at=time.time(), pause_kind="usage_limit" if usage else "failure",
+                paused_at=paused_at, pause_kind="usage_limit" if usage else "failure",
                 resets_at=max((s["resets_at"] or 0 for s in streams), default=0) or None)
-            self.note("paused", teams=bad, kind=self.state["pause_kind"])
+            self.note("paused", teams=bad, cause=self.state["pause_kind"])
             raise Paused(self.state["paused"])
 
     def _observe_submissions(self, final: bool = False) -> None:
