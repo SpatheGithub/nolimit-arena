@@ -78,7 +78,7 @@ Then reply with the single word DONE."""
     os.makedirs(os.path.dirname(log), exist_ok=True)
     t0 = time.time()
     with open(log, "w") as out:
-        proc = subprocess.run(cmd, cwd=me.workspace, env=ev.builder_env(), stdout=out,
+        proc = subprocess.run(cmd, cwd=me.workspace, env=ev.builder_env(), stdin=subprocess.DEVNULL, stdout=out,
                               stderr=subprocess.PIPE, text=True, timeout=timeout_s)
     elapsed = time.time() - t0
     raw = open(log, errors="replace").read()

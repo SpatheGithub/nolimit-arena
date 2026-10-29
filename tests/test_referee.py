@@ -152,6 +152,19 @@ def test_clock_check_resumes_finished_builders_with_backoff(tmp_path, monkeypatc
     assert launched == []
 
 
+def test_builders_never_inherit_the_referees_stdin(tmp_path, monkeypatch):
+    # `claude -p` appends piped stdin to its prompt (seen on 2.1.300), so an inherited stdin would reach every builder.
+    ev = Event.new(config(tmp_path, "stdin", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    seen = []
+    monkeypatch.setattr(event_module.subprocess, "Popen",
+                        lambda cmd, **kw: seen.append(kw) or type("P", (), {"pid": 1, "poll": lambda self: None})())
+    for mock in (True, False):
+        ev.state["mock"] = mock
+        ev._launch(ev.teams[0], "build", 0, time.time() + 60, None)
+    assert [kw["stdin"] for kw in seen] == [subprocess.DEVNULL] * 2
+
+
 def test_usage_limit_pause_waits_for_the_reset_and_keeps_the_time_left(tmp_path, monkeypatch):
     ev = Event.new(config(tmp_path, "limit", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
                    root=str(tmp_path / "events"))

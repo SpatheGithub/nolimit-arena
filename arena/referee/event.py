@@ -221,7 +221,9 @@ class Event:
             env = self.builder_env()
         out = open(self.p("logs", f"{t.team}.jsonl"), "a")
         err = open(self.p("logs", f"{t.team}.stderr"), "a")
-        proc = subprocess.Popen(cmd, cwd=t.workspace, env=env, stdout=out, stderr=err, start_new_session=True)
+        # `claude -p` appends piped stdin to its prompt, so a builder must never inherit the referee's.
+        proc = subprocess.Popen(cmd, cwd=t.workspace, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=err,
+                                start_new_session=True)
         out.close()
         err.close()
         b.update(pid=proc.pid, phase=f"{phase}:{k}", started=time.time(), exit=None,
