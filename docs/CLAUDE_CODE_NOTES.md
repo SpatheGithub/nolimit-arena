@@ -413,12 +413,49 @@ From `claude --help` (2.1.300) and the model-config docs page:
 - **Per working minute over a 160-minute session:** $0.09 measured, rising toward about $0.15 as contexts grow.
 - **Total:** 2,560 builder-minutes × 88% working is about **$200 to $340, around $250.**
 - **Wall clock:** 16 builders spend about $1.3 to $2.1 per event-minute, so each window covers only 15 to 25 minutes of event before the referee waits for the reset. **The full config takes about 7 to 11 windows, 1.5 to 2.5 days.** With 8 builders it's half that.
-- **Field quality:** both calibration builders started from the house `tag` / `icm_pushfold` source in `kit/house_bots/`, which the brief invites them to copy, and tuned parameters. A field built that way is mostly copies of the arena's own baselines.
+- **Field quality:** both calibration builders started from the house `tag` / `icm_pushfold` source in `kit/house_bots/`, which the brief invites them to copy, and tuned parameters. A field built that way is mostly copies of the arena's own baselines. **Fixed the same day:** see "Builders build from scratch" below.
+
+### Builders build from scratch (2026-10-29)
+
+- **What leaked.** Every house bot package carried a full copy of `_common.py` and `_common.json`, so even `checkfold/` in a builder's kit held the tight-aggressive core, ICM and the chip-EV push/fold charts.
+- **The split.** `_common` now holds only what the quick-build bots use: cards, hand values, variant rules, percentiles and equity vs random hands, the parsed decision, safe actions, postflop features. `_strategy` (with `_strategy.json`) holds the push/fold charts, equity vs ranges, ICM, in-table reads and `TagCore`. Only `tag`, `icm_pushfold` and `chip_pushfold` import it, and `python -m arena.house_bots.sync` copies each shared module only into the packages that use it, deleting stray copies.
+- **Same play.** A fixed-seed tournament of the ten deterministic bots (120 tables, 15,485 hands) gave identical means, VPIP, PFR and showdown rates before and after the split.
+- **The kit.** Builders get the eight quick-build bots in `arena.house_bots.KIT_BOTS`: every quick-build pattern except `chip_pushfold`, whose charts are as much of a head start as the baselines. `tests/test_kit.py` checks that a built workspace contains no strategy file or marker.
+- **Testing without strong opponents.** `kit/localsim.py --opponents` also takes bot directories, so builders can play their earlier accepted versions in `.submissions/`. The brief and the clock checks say so, and that the house bots are practice opponents, not the field.
+
+### Private temp folders and the workspaces root (2026-10-29)
+
+- **The leak.** Without an override, every builder's Claude Code keeps its temp files in `/private/tmp/claude-501/<project>/`, the same per-user folder as the operator's sessions. A sandboxed command could read the operator's scratchpad and task output, and other builders' temp files.
+- **Verified facts:**
+  - The env-vars page: `CLAUDE_CODE_TMPDIR` "Override[s] the temp directory used for internal temp files". Claude Code appends `/claude-{uid}/`, and the default is `/tmp` on macOS. Sandboxed Bash gets a short fallback `$TMPDIR` "when your override is a long path". Claude Code's own temp files always use the override. Set it in the shell or user settings; project settings ignore it.
+  - The sandboxing page: sandboxed commands can write "the per-user temp directory that `$TMPDIR` points to".
+  - The 2.1.300 binary warns at about 30 bytes: "Shorten CLAUDE_CODE_TMPDIR to ≤~30 bytes if child processes should use your override."
+- **The design:**
+  - Each builder gets `/private/tmp/nl/<6-hex hash of the event dir>/<team>` (26 bytes, mode 0700), set as `CLAUDE_CODE_TMPDIR` and `TMPDIR` in its environment. `builder_tmpdir` refuses paths over 30 bytes rather than let commands fall back silently.
+  - The sandbox's `denyRead` covers `/private/tmp/claude-<uid>`, `/private/tmp/nl`, and the **whole workspaces root**. Before this it covered only this event's workspaces folder, so earlier events' workspaces were readable, calibration kits with the strong bots included. `allowRead` re-allows the builder's own workspace, temp folder and Python.
+  - `referee cleanup` removes the event's temp folders. `paths.workspaces_root` must be used only for workspaces; `new` refuses the home directory as its parent.
+- **The isolation proof** has 15 checks now. New ones:
+  - canaries in the operator's temp folder, a sibling's temp folder and the workspaces root, read by `cat` and by a script that globs for every canary, which the permission layer can't see into, so only the sandbox stops it;
+  - a write probe into the operator's temp folder;
+  - a positive control: Python's `tempfile.gettempdir()` must be the builder's own folder.
+- **Not yet run against a real session.** The next `referee isolation` (Haiku, a fraction of a cent) is the test, and it runs before every event.
+- **Still readable:** the rest of the home directory, apart from `.ssh`, `.aws`, `.claude.json` and `.claude/projects`. Denying `~/` would need re-allowing whatever the Bash tool reads there (shell snapshots, per the milestone 5 notes), so it needs its own isolation run.
+
+### Recommended sizing: two 8-builder events (2026-10-29)
+
+- **Keep the official timing:** a 60-minute build, six tournaments, 20-minute patch windows. Shorter windows would make the bots weaker than the real field's.
+- **Per 8-builder event:**
+  - 8 × 160 = 1,280 builder-minutes, about $100 to $170 at $0.09 to $0.15 per working minute.
+  - About 4 five-hour windows (range 3 to 7), so roughly 15 to 20 hours of wall clock, mostly waiting for resets.
+  - Builders spend about $0.6 to $1.0 per event-minute, so a window covers 25 to 65 minutes of event.
+- **Two events, not one of 16:** the same usage in total, but the first results arrive about a day sooner, a problem found in the first costs half as much, and the operator's own Claude use is free between them. Each event draws its own seed and its own archetypes (four of nine each).
+- **Pooling:** `gauntlet --field event:<a>,<b>` plays both fields together with no builders. What pooling loses: in-event adaptation happened against 7 opponents, not 15.
+- **During a run** the event uses each window until the limit, so the operator's own use in that time comes out of the builders' share.
 
 ## Open questions
 
 - **The org's terms.** Does the education Enterprise contract bill by usage or by seat? Does it allow automated, parallel `claude -p` use on one seat? Does the org push server-managed settings (forced plugins, hooks or permission rules) that would override builder settings?
 - **Auth choice.** Would the user rather create a Console API key (enables `--bare`, billed separately) or a `setup-token` (keeps subscription billing and decouples builders from the Keychain login)?
-- **Shared temp directory.** Is a temp directory shared by all builders acceptable? Is the sandbox's writable temp directory derived from the `TMPDIR` of the `claude` process? If so, giving each builder its own temp directory would close that channel. **Seen 2026-10-29:** a sandboxed session wrote to `/private/tmp/claude-501/`. That is the per-user directory that also holds the operator's Claude Code scratchpads and background-task output, so builders can read and write there, and can see each other's temp files.
+- **Shared temp directory.** Answered 2026-10-29: the writable temp folder follows `CLAUDE_CODE_TMPDIR`, and each builder now gets its own (see "Private temp folders and the workspaces root"). The next isolation proof confirms it on a real session.
 - **Piped stdin reaches the prompt.** `claude -p` appends piped stdin to its prompt. A probe launched from a heredoc read the script itself as instructions. The referee now launches builders and the isolation proof with stdin from `/dev/null`.
 - **Brief location.** Should the brief stay inside the workspace, where the builder can edit it, or move under `events/`?

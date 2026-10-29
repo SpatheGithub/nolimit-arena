@@ -11,11 +11,14 @@ passive limping when deep.
 
 from ._common import (SafeAgent, Spot, act_allin, act_call, act_discard, act_fold, act_pot, cat_strength,
                       plo_strength, preflop_pct)
+from ._strategy import ChartVariant
 
 SHORT_BB = 15.0
 
 
 class Agent(SafeAgent):
+    variant_cls = ChartVariant
+
     def decide(self, obs: dict) -> dict:
         if obs["phase"] == "discard":
             return act_discard(obs, self.var)

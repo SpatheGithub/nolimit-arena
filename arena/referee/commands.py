@@ -64,6 +64,8 @@ def cleanup(ev: Event) -> str:
                         filter=lambda ti: None if "/kit/arena" in ti.name or "__pycache__" in ti.name else ti)
     for t in ev.teams:
         shutil.rmtree(t.workspace, ignore_errors=True)
+        if ev.tmpdir(t.team):
+            shutil.rmtree(os.path.dirname(ev.tmpdir(t.team)), ignore_errors=True)
     parent = os.path.dirname(ev.teams[0].workspace) if ev.teams else None
     if parent and os.path.isdir(parent) and not os.listdir(parent):
         os.rmdir(parent)
@@ -73,11 +75,12 @@ def cleanup(ev: Event) -> str:
 
 def archived_bots(selector: str = "latest", root: str = EVENTS_ROOT) -> list[Entry]:
     """Frozen bots from past events. ``latest``: each team's last frozen bot;
-    ``all``: every frozen bot; ``event:<id>``: that event's latest per team."""
+    ``all``: every frozen bot; ``event:<id>[,<id>...]``: those events' latest
+    per team (for example two 8-builder events pooled into one field)."""
     out = []
     events = sorted(os.listdir(root)) if os.path.isdir(root) else []
     if selector.startswith("event:"):
-        events = [selector.split(":", 1)[1]]
+        events = [e for e in selector.split(":", 1)[1].split(",") if e]
     for e in events:
         bots = os.path.join(root, e, "bots")
         if not os.path.isdir(bots):

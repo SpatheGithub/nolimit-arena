@@ -10,6 +10,7 @@ start Claude.
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
 import os
 import shutil
@@ -24,6 +25,8 @@ DENIED_TOOLS = ["WebFetch", "WebSearch", "Agent", "Workflow", "SendMessage", "Li
 TOOLS = "Bash,Read,Edit,Write,Glob,Grep," + SENTINEL_TOOL
 CREDENTIAL_VARS = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"]
 ENV_FILE = "arena-env.sh"
+TMP_ROOT = "/private/tmp/nl"
+TMPDIR_MAX_BYTES = 30
 # Fatal for a builder. rate_limit and overloaded are retried by Claude Code and only count if the run fails.
 FATAL_CATEGORIES = {"authentication_failed", "oauth_org_not_allowed", "account_on_hold", "billing_error",
                     "model_not_found"}
@@ -90,27 +93,53 @@ def write_env_file(builder_venv: str) -> str:
     return path
 
 
+def builder_tmpdir(root: str, event_dir: str, team: str) -> str:
+    """The builder's CLAUDE_CODE_TMPDIR, under ``root`` and a short hash of the
+    event: its Claude Code's temp files and the one temp folder its sandboxed
+    commands can write. Sandboxed commands get a shared fallback instead when
+    the override is long (about 30 bytes, seen in 2.1.300), so a longer path
+    is an error rather than a silent fallback."""
+    path = os.path.join(root, hashlib.sha1(os.path.realpath(event_dir).encode()).hexdigest()[:6], team)
+    if len(path.encode()) > TMPDIR_MAX_BYTES:
+        raise ValueError(f"builder temp folder {path} is longer than {TMPDIR_MAX_BYTES} bytes; "
+                         "shorten paths.builder_tmp_root")
+    return path
+
+
+def operator_tmpdirs() -> list[str]:
+    """Per-user temp folders that this user's other Claude Code sessions write:
+    the default one, and the one under this process's CLAUDE_CODE_TMPDIR."""
+    roots = ["/tmp", os.environ.get("CLAUDE_CODE_TMPDIR") or "/tmp"]
+    return sorted({os.path.join(os.path.realpath(r), f"claude-{os.getuid()}") for r in roots})
+
+
 def team_settings(team: Team, all_teams: list[Team], events_dir: str, repo: str, builder_venv: str,
-                  extra_read: tuple[str, ...] = ()) -> dict:
+                  extra_read: tuple[str, ...] = (), tmp_root: str | None = None, tmpdir: str | None = None) -> dict:
     """Claude Code settings for one builder: OS sandbox for Bash, permission
     rules for the file and web tools, and the operator's customizations off.
     Bash is allowed at the permission layer because the sandbox is what
-    confines it; leaving it to auto-approval refuses some compound commands."""
+    confines it; leaving it to auto-approval refuses some compound commands.
+    Bash can't read other sessions' temp folders (the operator's, or other
+    builders' under ``tmp_root``), only its own ``tmpdir``, nor any workspace
+    under the workspaces root, this event's or an earlier one's, but its own."""
     others = [t.workspace for t in all_teams if t.team != team.team]
-    ws_root = os.path.dirname(team.workspace)
+    all_workspaces = os.path.dirname(os.path.dirname(team.workspace))  # paths.workspaces_root
     deny = list(DENIED_TOOLS)
     deny += [f"Read(/{p}/**)" for p in [events_dir, repo, *others]]
+    deny_read = [all_workspaces, events_dir, repo, os.path.expanduser("~/.claude/projects"),
+                 os.path.expanduser("~/.claude.json"), os.path.expanduser("~/.ssh"), os.path.expanduser("~/.aws"),
+                 *operator_tmpdirs()]
+    allow_read = [team.workspace, builder_venv, *extra_read]
+    if tmp_root:
+        deny_read.append(tmp_root)
+    if tmpdir:
+        allow_read.append(tmpdir)
     return {
         "permissions": {"allow": ["Bash"], "deny": deny, "blockReadsOutsideWorkingDirectories": True},
         "sandbox": {
             "enabled": True, "failIfUnavailable": True, "allowUnsandboxedCommands": False,
             "autoAllowBashIfSandboxed": True,
-            "filesystem": {
-                "denyRead": [ws_root, events_dir, repo, os.path.expanduser("~/.claude/projects"),
-                             os.path.expanduser("~/.claude.json"), os.path.expanduser("~/.ssh"),
-                             os.path.expanduser("~/.aws")],
-                "allowRead": [team.workspace, builder_venv, *extra_read],
-            },
+            "filesystem": {"denyRead": deny_read, "allowRead": allow_read},
             "network": {"allowedDomains": [], "strictAllowlist": True},
             "credentials": {"envVars": [{"name": v, "mode": "deny"} for v in CREDENTIAL_VARS]},
         },

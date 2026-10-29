@@ -1,6 +1,7 @@
 """Offline: percentiles, equity vs top-x% ranges and chip-EV push/fold charts.
 
-Reads eq_<deck>.npz from gen_equity.py; prints the encoded data block for _common.py.
+Reads eq_<deck>.npz from gen_equity.py; writes _common.json (what every house bot
+may use) and _strategy.json (the charts only the bots kept out of builders' kits use).
 
 Push/fold model (chip EV, all stacks S big blinds, blinds 0.5/1, no antes): the
 pusher has k players behind; callers act in order and the first caller ends
@@ -147,27 +148,39 @@ def build(name, path, kmax):
     return out, (eqr, order, pct, eqtop, push, call)
 
 
+COMMON_FIELDS = ("ranks", "pct", "eq_multi")
+STRATEGY_FIELDS = ("kmax", "eq_top", "push", "call")
+ABOUT_COMMON = ("Preflop tables for the house bots, generated offline with arena.engine's evaluator by Monte "
+                "Carlo (class vs class: 2400/6000/20000 boards per pair for std/short/royal; class vs k random "
+                "hands: 12000/16000/30000 deals). Classes: pair hi*n+hi, suited hi*n+lo, offsuit lo*n+hi, with "
+                "hi/lo the rank positions within the deck. Values x 1e-4. pct: midpoint percentile by equity vs "
+                "one random hand (0 = best). eq_multi[c][k-1]: equity vs k random hands.")
+ABOUT_STRATEGY = ("Charts for the house bots that use _strategy.py, from the same Monte Carlo runs as "
+                  "_common.json (same classes; values x 1e-4). eq_top[c][g]: equity vs a random hand from the "
+                  "top grid[g] of combos, card removal included. push[k-1][c] / call[k-1][role][c] (role: "
+                  "other, SB, BB): chip-EV push/fold equilibrium (fictitious play; stacks S big blinds, blinds "
+                  "0.5/1, no antes, one caller at most) with k players behind the pusher, for k up to kmax; the "
+                  "hand is pushed/called at every S up to code/2 big blinds; 255 = at every S up to 20; "
+                  "0 = never.")
+
+
+def split_doc(grid, decks):
+    """(_common.json, _strategy.json) documents from build()'s per-deck output."""
+    common = {"about": ABOUT_COMMON, "decks": {k: {f: d[f] for f in COMMON_FIELDS} for k, d in decks.items()}}
+    strategy = {"about": ABOUT_STRATEGY, "grid": list(grid),
+                "decks": {k: {f: d[f] for f in STRATEGY_FIELDS} for k, d in decks.items()}}
+    return common, strategy
+
+
 if __name__ == "__main__":
     sp = sys.argv[1]
     import json
+    import os
     res = {}
     for name, kmax in (("std", 7), ("short", 7), ("royal", 6)):
         out, _ = build(name, f"{sp}/eq_{name}.npz", kmax)
         res[name] = out
-    doc = {
-        "about": "Preflop tables for the house bots, generated offline with arena.engine's evaluator "
-                 "by Monte Carlo (class vs class: 2400/6000/20000 boards per pair for std/short/royal; "
-                 "class vs k random hands: 12000/16000/30000 deals). Classes: pair hi*n+hi, suited hi*n+lo, "
-                 "offsuit lo*n+hi, with hi/lo the rank positions within the deck. Values x 1e-4. "
-                 "pct: midpoint percentile by equity vs one random hand (0 = best). eq_top[c][g]: equity vs "
-                 "a random hand from the top grid[g] of combos, card removal included. eq_multi[c][k-1]: "
-                 "equity vs k random hands. push[k-1][c] / call[k-1][role][c] (role: other, SB, BB): chip-EV "
-                 "push/fold equilibrium (fictitious play; stacks S big blinds, blinds 0.5/1, no antes, one "
-                 "caller at most) with k players behind the pusher; the hand is pushed/called at every S up "
-                 "to code/2 big blinds; 255 = at every S up to 20; 0 = never.",
-        "grid": GRID,
-        "decks": res,
-    }
-    json.dump(doc, open(f"{sp}/_common.json", "w"), separators=(",", ":"))
-    import os
-    print("ok", os.path.getsize(f"{sp}/_common.json"))
+    for fn, doc in zip(("_common.json", "_strategy.json"), split_doc(GRID, res)):
+        with open(f"{sp}/{fn}", "w") as f:
+            json.dump(doc, f, separators=(",", ":"))
+        print("ok", fn, os.path.getsize(f"{sp}/{fn}"))

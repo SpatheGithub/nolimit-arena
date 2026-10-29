@@ -36,8 +36,8 @@ from ..tournament.tournament import default_workers, run_tournament
 from ..tournament.validate import validate
 from ..tournament.wsstate import fmt_clock, fmt_duration, submissions as ws_submissions, write_json_atomic
 from ..variants.render import render_event_md
-from .builders import (builder_env, claude_command, ensure_builder_venv, env_file, mock_command, python_base_prefix,
-                       read_stream, team_settings, write_settings)
+from .builders import (TMP_ROOT, builder_env, builder_tmpdir, claude_command, ensure_builder_venv, env_file,
+                       mock_command, python_base_prefix, read_stream, team_settings, write_settings)
 from .config import REPO, Team, draw_event, load_config
 from .prompts import render_brief, render_nudge, render_patch
 from .workspace import build_workspace, write_clock
@@ -110,6 +110,11 @@ class Event:
         root_ws = os.path.dirname(teams[0].workspace) if teams else None
         if root_ws and os.path.realpath(root_ws).startswith(os.path.realpath(REPO) + os.sep):
             raise ValueError("paths.workspaces_root must be outside the arena repo")
+        if root_ws and os.path.realpath(os.path.dirname(root_ws)) in (os.path.realpath(os.path.expanduser("~")), "/"):
+            # builders' sandboxes deny reading the whole workspaces root
+            raise ValueError("paths.workspaces_root must be a folder used only for builder workspaces")
+        tmp_root = os.path.realpath(os.path.expanduser(cfg["paths"].get("builder_tmp_root") or TMP_ROOT))
+        tmps = {t.team: builder_tmpdir(tmp_root, d, t.team) for t in teams}  # checks the length before creating anything
         os.makedirs(d)
         save_card(card, os.path.join(d, "card.json"))
         with open(os.path.join(d, "teams.json"), "w") as f:
@@ -125,13 +130,19 @@ class Event:
         for t in teams:
             if os.path.exists(t.workspace):
                 raise FileExistsError(f"workspace {t.workspace} already exists")
+            tmp = tmps[t.team]
+            shutil.rmtree(tmp, ignore_errors=True)  # a stale folder from a deleted event of the same path
+            os.makedirs(tmp, mode=0o700)
+            for p in (tmp_root, os.path.dirname(tmp)):
+                os.chmod(p, 0o700)
             build_workspace(t.workspace, None, "# The event hasn't started yet.\n")
             write_settings(os.path.join(d, "settings", f"{t.team}.json"),
-                           team_settings(t, teams, events_dir, os.path.realpath(REPO), builder_venv, (base_prefix,)))
+                           team_settings(t, teams, events_dir, os.path.realpath(REPO), builder_venv, (base_prefix,),
+                                         tmp_root, tmp))
         write_json_atomic(os.path.join(d, "state.json"), {
             "event": event_id, "phase": "created", "created": time.time(), "notes": notes,
-            "builder_venv": builder_venv, "builders": {}, "windows": [], "frozen": {}, "tournaments": {},
-            "events": []})
+            "builder_venv": builder_venv, "builder_tmp_root": tmp_root, "builders": {}, "windows": [], "frozen": {},
+            "tournaments": {}, "events": []})
         return cls(event_id, root)
 
     # ------------------------------------------------------------ run
@@ -218,7 +229,7 @@ class Event:
                                  settings_file=self.p("settings", f"{t.team}.json"), session_id=session,
                                  auth_mode=self.cfg["auth"]["mode"], resume=resume, budget_usd=budget,
                                  effort=self.cfg["builders"].get("effort"))
-            env = self.builder_env()
+            env = self.builder_env(t.team)
         out = open(self.p("logs", f"{t.team}.jsonl"), "a")
         err = open(self.p("logs", f"{t.team}.stderr"), "a")
         # `claude -p` appends piped stdin to its prompt, so a builder must never inherit the referee's.
@@ -233,9 +244,16 @@ class Event:
         self._procs = getattr(self, "_procs", {})
         self._procs[t.team] = proc
 
-    def builder_env(self) -> dict:
+    def builder_env(self, team: str | None = None) -> dict:
         venv = self.state["builder_venv"]
-        return builder_env(REPO, builder_venv=venv, env_file=env_file(venv))
+        tmp = self.tmpdir(team) if team else None
+        return builder_env(REPO, {"CLAUDE_CODE_TMPDIR": tmp, "TMPDIR": tmp} if tmp else None, builder_venv=venv,
+                           env_file=env_file(venv))
+
+    def tmpdir(self, team: str) -> str | None:
+        """The team's own temp folder (None for events created before there was one)."""
+        root = self.state.get("builder_tmp_root")
+        return builder_tmpdir(root, self.dir, team) if root else None
 
     def stream(self, team: str) -> dict:
         """read_stream of a team's log, cached until the log changes: finished builders

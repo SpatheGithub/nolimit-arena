@@ -59,6 +59,6 @@ kit:
   localsim_max_seconds: 60
 
 paths:
-  workspaces_root: ~/nolimit-workspaces   # must be OUTSIDE this repo
+  workspaces_root: ~/nolimit-workspaces   # OUTSIDE this repo, and used only for workspaces: builders can't read it
   builder_venv: ~/nolimit-workspaces/.venv  # Python + numpy builders run; outside the repo (created on first `new`)
   events_root: events                     # referee-only data inside the repo (gitignored)

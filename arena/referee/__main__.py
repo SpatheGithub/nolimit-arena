@@ -7,7 +7,8 @@
     python -m arena.referee report <event>
     python -m arena.referee debrief <event>
     python -m arena.referee cleanup <event>
-    python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>] [--card-from <event>] [--iterations 200]
+    python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]
+                                     [--card-from <event>] [--iterations 200]
 
 Run the referee from your own terminal (tmux or screen), not inside a Claude
 Code session: it starts and stops many Claude Code processes.

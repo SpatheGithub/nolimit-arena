@@ -2,18 +2,25 @@
 # 20-minute patch windows, 6 tournaments). On a claude.ai login it spans several five-hour
 # usage windows: when the limit stops the builders, the referee waits for the reset and
 # carries on with the time the window had left.
-#   python -m arena.referee new configs/full-opus.yaml
+#
+# Run it as two 8-builder events rather than one of 16: the same usage in total (about 4
+# windows each, from the 2026-10-29 calibration), but the first results arrive a day sooner,
+# a problem in the first event costs half as much, and your own Claude use is free between
+# them. Each event draws its own seed. Pool both fields afterwards, without builders:
+#   python -m arena.referee gauntlet <bot_dir> --field event:full-opus-001,full-opus-002
+#
+#   python -m arena.referee new configs/full-opus.yaml            # then --name full-opus-002
 #   python -m arena.referee isolation full-opus-001     # a fraction of a cent, Haiku
 #   python -m arena.referee run full-opus-001           # in screen; live viewer on 127.0.0.1:8766
 event:
   name: full-opus-001
   seed: null
 builders:
-  count: 16                     # two full tables per iteration and no house fillers; about this Mac's ceiling
+  count: 8                      # one full table per iteration, no house fillers; 16 is about this Mac's ceiling
   models:
-    opus: 16
+    opus: 8
   effort: max
-  archetypes: assign_half       # half get a starting direction, so the field isn't 16 copies of one design
+  archetypes: assign_half       # half get a starting direction, so the field isn't 8 copies of one design
   launch_stagger_seconds: 5
 auth:
   mode: subscription
@@ -29,7 +36,7 @@ table:
   blinds:
     schedule: doubling
 tournament:
-  iterations: 1000              # 2,000 tables per tournament, for tighter rankings than the 400 default
+  iterations: 1000              # 1,000 tables per tournament, for tighter rankings than the 400 default
 kit:
-  localsim_max_tables: 1000     # 16 builders share the machine, not 40
+  localsim_max_tables: 1000     # 8 builders share the machine, not 40
   localsim_max_seconds: 240

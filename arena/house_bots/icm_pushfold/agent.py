@@ -16,7 +16,8 @@ ignore, while still stealing from players who fold too much.
 
 import numpy as np
 
-from ._common import Spot, TagCore, icm_hero
+from ._common import Spot
+from ._strategy import TagCore, icm_hero
 
 FUTURE_HANDS = 3
 

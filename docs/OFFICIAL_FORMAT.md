@@ -55,6 +55,7 @@
 | Several eliminations in one hand | The larger stack at the start of the hand places higher; exact ties split those places' points |
 | Button and blinds after busts | A documented dead-button simplification (`kit/RULES.md`) |
 | Packages available to bots | Standard library + numpy |
+| What the starter kit's local simulator plays against | Not stated. The kit carries only the quick-build house bots as practice opponents, and localsim can play the team's earlier versions. The strong baselines stay referee-side, so builders write their bots from scratch |
 | Feedback between tournaments | Leaderboard, own stats, a sample of own hands (configurable). The rules imply results are published before the next tournament (disputes are due before it starts) but define no feedback to teams |
 | What one of the 10,000 iterations is | Every bot seated once per iteration (N/8 tables). The text also allows 10,000 tables in total; expected scores agree, variance and compute differ |
 | Memory, CPU, Python version, import and init time | Not stated. The arena uses `tournament.import_limit_s` and `init_limit_s` |

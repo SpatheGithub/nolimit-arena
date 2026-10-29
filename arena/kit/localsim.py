@@ -1,6 +1,9 @@
-"""Play sit-and-gos with bot/ against house bots or copies of itself.
+"""Play sit-and-gos with bot/ against house bots, copies of itself or other bot directories.
 
-    python kit/localsim.py [--opponents zoo|self|name,name,...] [--tables 50] [--seed 1]
+    python kit/localsim.py [--opponents zoo|self|name,dir,...] [--tables 50] [--seed 1]
+
+A name is a house bot in kit/house_bots/; a directory is any bot directory, such
+as an earlier accepted version in .submissions/.
 
 Uses one core under nice, today's rules from kit/event.json, and the real
 runner (timing, substitutions). Capped at the event's localsim limits because
@@ -25,7 +28,9 @@ from arena.tournament.validate import house_opponents  # noqa: E402
 def main() -> int:
     card = load_card(os.path.join(KIT, "event.json"))
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--opponents", default="zoo", help="zoo, self, or comma-separated house bot names")
+    ap.add_argument("--opponents", default="zoo",
+                    help="zoo, self, or comma-separated house bot names and bot directories "
+                         "(for example .submissions/002-1a2b3c4d)")
     ap.add_argument("--tables", type=int, default=min(50, card["localsim_max_tables"]))
     ap.add_argument("--seed", type=int, default=1)
     a = ap.parse_args()
@@ -40,12 +45,19 @@ def main() -> int:
     elif a.opponents == "zoo":
         opponents = house_opponents(house, bot, n_opp)
     else:
-        names = [x.strip() for x in a.opponents.split(",") if x.strip()]
-        missing = [n for n in names if not os.path.isfile(os.path.join(house, n, "agent.py"))]
+        paths, missing = [], []
+        for name in (x.strip().rstrip("/") for x in a.opponents.split(",") if x.strip()):
+            found = [p for p in (os.path.join(house, name), os.path.join(WS, name), os.path.abspath(name))
+                     if os.path.isfile(os.path.join(p, "agent.py"))]
+            if found:
+                paths.append(found[0])
+            else:
+                missing.append(name)
         if missing:
-            print(f"unknown house bots: {', '.join(missing)}; see kit/house_bots/")
+            print(f"not found: {', '.join(missing)}; give house bot names (see kit/house_bots/) "
+                  f"or bot directories with an agent.py")
             return 2
-        opponents = [Entry(f"{names[i % len(names)]}_{i + 1}", os.path.join(house, names[i % len(names)]))
+        opponents = [Entry(f"{os.path.basename(paths[i % len(paths)])}_{i + 1}", paths[i % len(paths)])
                      for i in range(n_opp)]
     tables = max(1, min(a.tables, card["localsim_max_tables"]))
     settings = settings_from_card(card, hand_logs=False)

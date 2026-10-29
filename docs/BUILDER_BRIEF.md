@@ -31,7 +31,7 @@ You work alone and unattended. Nobody will answer questions or approve anything.
 - The build phase lasts {{BUILD_MINUTES}} minutes and ends at {{DEADLINE_HUMAN}}.
 - `python kit/clock.py` prints the time left. Check it every few steps; it's easy to lose track.
 - At the deadline this session is stopped mid-step without warning. Only submissions that `kit/submit.py` has already accepted count.
-- **Use the whole build phase.** A first accepted bot is the start, not the finish. Then play it against the house bots with `kit/localsim.py`, find where it loses points, improve that, check it and resubmit. Keep going until about a minute is left.
+- **Use the whole build phase.** A first accepted bot is the start, not the finish. Then play it with `kit/localsim.py` against the house bots and your own earlier versions, find where it loses points, improve that, check it and resubmit. Keep going until about a minute is left.
 - If you end your turn early, the referee resumes this session and tells you the time left.
 - {{TOURNAMENT_PLAN}}
 
@@ -81,11 +81,11 @@ In short:
 - **`EVENT.md`:** today's rules. Read it first.
 - **`kit/RULES.md`:** dealer details, such as button movement after busts, odd chips and simultaneous eliminations.
 - **`kit/agent_template.py`:** the interface, with every observation field and action documented.
-- **`kit/localsim.py`:** plays sit-and-gos against house bots or copies of your own bot.
+- **`kit/localsim.py`:** plays sit-and-gos against house bots, copies of your bot, or your earlier versions (`--opponents .submissions/<id>`).
   - It runs on one core and is capped at {{LOCALSIM_CAP}} tables per run, because {{N_OTHERS}} other teams share this machine.
   - Run `--help` for options.
 - **`kit/check_bot.py`:** the same validation as submit, plus fuzzing and a decision-time profile. Timings here are inflated by the busy machine; the referee re-times every bot on an idle machine.
-- **`kit/icm.py`, `kit/house_bots/`, `kit/arena/engine/`:** the ICM calculator, simple opponents, and the game engine source (the hand evaluator is `kit/arena/engine/fasteval.py`). Read them freely, and copy anything useful into `bot/`. Don't import `kit` or `arena` from your bot: submit.py rejects that, because neither exists at the real event.
+- **`kit/icm.py`, `kit/house_bots/`, `kit/arena/engine/`:** the ICM calculator, practice opponents, and the game engine source (the hand evaluator is `kit/arena/engine/fasteval.py`). The house bots are simple patterns of quickly built bots: beating them shows your bot works, not that it's strong. The bots that decide your score are the other teams'. Read the kit freely, and copy anything useful into `bot/`. Don't import `kit` or `arena` from your bot: submit.py rejects that, because neither exists at the real event.
 - **`NOTES.md`:** your notes. The referee collects them.
 
 ## Practical notes

@@ -17,7 +17,7 @@ import pytest
 
 from arena.engine.spec import NLHE
 from arena.engine.xval import FLHE, PLO, ROYAL, SHORTDECK
-from arena.house_bots import ZOO, sync
+from arena.house_bots import KIT_BOTS, ZOO, sync
 from arena.runner.local import play_local_table
 from arena.runner.obs import table_config
 from tests.test_hand_rules import PINEAPPLE
@@ -125,6 +125,8 @@ def test_registry():
         assert os.path.isfile(os.path.join(info["path"], "agent.py"))
         assert info["group"] in ("quick-build", "baseline") and info["summary"]
     assert {n for n, i in ZOO.items() if i["group"] == "baseline"} == {"icm_pushfold", "tag"}
+    # builders practise against quick-build patterns only, and never see push/fold charts
+    assert set(KIT_BOTS) == {n for n, i in ZOO.items() if i["group"] == "quick-build"} - {"chip_pushfold"}
 
 
 def test_bots_import_only_stdlib_numpy_and_themselves():
@@ -145,9 +147,12 @@ def test_bots_import_only_stdlib_numpy_and_themselves():
                 assert set(roots) <= allowed, f"{name}/{fn} imports {roots}"
 
 
-def test_common_copies_match_the_source():
+def test_shared_copies_match_the_sources():
     assert sorted(sync.users()) == sorted(i["path"] for i in ZOO.values())
-    assert sync.stale() == []
+    assert sync.stale() == [] and sync.extra() == []
+    strategy = {n for n, i in ZOO.items() if "_strategy" in sync.needs(i["path"])}
+    assert strategy == {"chip_pushfold", "icm_pushfold", "tag"}
+    assert not strategy & set(KIT_BOTS)
 
 
 @pytest.mark.parametrize("run", list(RUNS))

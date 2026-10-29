@@ -66,7 +66,8 @@ def render_nudge(left_s: float, deadline_human: str, last_sid: str | None) -> st
     status = (f"Your latest accepted submission is {last_sid}." if last_sid
               else "You have no accepted submission yet, so getting one accepted comes first.")
     return (f"Clock check: {fmt_duration(left_s)} left; this window closes at {deadline_human}. {status} "
-            "Use the time: play your bot against the house bots with kit/localsim.py, find where it loses points, "
+            "Use the time: play your bot with kit/localsim.py against the house bots and your earlier versions in "
+            ".submissions/, find where it loses points, "
             "improve that, run kit/check_bot.py, and resubmit only if the new version is better. "
             "Keep NOTES.md current.")
 

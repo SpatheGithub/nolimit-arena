@@ -43,5 +43,7 @@ Keep this list current as commands are added.
 - `python -m arena.referee isolation <event-id>` (scripted Haiku run with real builder settings; spends a fraction of a cent)
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X] [--no-viz]` (serves the live viewer on 127.0.0.1:8766; waits out plan usage limits and resumes)
 - `python -m arena.referee status|report|debrief|cleanup <event-id>`
+- `python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]` (scores a bot against archived builder bots; no builders, no spend)
+- `python -m arena.house_bots.sync [--check]` (refreshes each house bot's copies of `_common` and `_strategy`; builders' kits get only `KIT_BOTS`)
 
 Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.

@@ -1,5 +1,5 @@
 """tag: tight-aggressive with stack-depth modes, the shared core in
-_common.TagCore.
+_strategy.TagCore.
 
 Deep: opening ranges by the number of players left to act (wider when the
 players behind fold to raises), 3-bets with premiums sized for position,
@@ -16,7 +16,7 @@ Strength: the reference strong bot; it should clearly beat every quick-build
 pattern in the zoo.
 """
 
-from ._common import TagCore
+from ._strategy import TagCore
 
 
 class Agent(TagCore):

@@ -44,7 +44,7 @@ These are not findings yet. Each needs evidence from real events before it shape
   - common quick-build patterns: a hand-strength threshold bot, a pot-odds caller, a Monte Carlo bot with a time budget, a min-raiser, a maniac shover, and an ICM-blind push/fold bot;
   - strong baselines: ICM-aware push/fold, and tight-aggressive play with stack-depth modes.
 
-  The zoo serves as opponents in localsim and as a calibration set for the report's leak metrics.
+  The zoo serves as opponents in localsim and as a calibration set for the report's leak metrics. Builders' kits carry only the quick-build patterns, without `chip_pushfold`'s push/fold charts. The strong baselines stay referee-side, because calibration builders given their source tuned it instead of building their own (2026-10-29).
 
 **Milestone 4: archive and gauntlet.**
 - **Archive.** Every frozen bot from every event is archived with its event card and snapshot hash.

@@ -14,6 +14,7 @@ import pytest
 
 from arena.engine.spec import NLHE
 from arena.engine.table import DOUBLING
+from arena.house_bots import KIT_BOTS
 from arena.referee.workspace import build_workspace, write_clock
 from arena.tournament.card import make_card
 from arena.variants.render import render_event_md
@@ -51,6 +52,21 @@ def test_workspace_layout(ws):
         assert os.path.exists(os.path.join(ws, rel)), rel
     card = json.load(open(os.path.join(ws, "kit", "event.json")))
     assert card["variant"]["name"] == "nlhe" and "nlhe" in open(os.path.join(ws, "EVENT.md")).read()
+
+
+def test_kit_has_practice_opponents_but_no_strong_strategy(ws):
+    assert sorted(os.listdir(os.path.join(ws, "kit", "house_bots"))) == sorted(KIT_BOTS)
+    markers = ("TagCore", "push_ok", "call_range", "icm_hero", "eq_top", "_strategy")
+    for root, _, files in os.walk(ws):
+        for fn in files:
+            path = os.path.join(root, fn)
+            assert not fn.startswith("_strategy"), path
+            if fn.endswith((".py", ".json", ".md")):
+                text = open(path, errors="replace").read()
+                assert not [m for m in markers if m in text], path
+    for name in KIT_BOTS:
+        decks = json.load(open(os.path.join(ws, "kit", "house_bots", name, "_common.json")))["decks"]
+        assert all(set(d) == {"ranks", "pct", "eq_multi"} for d in decks.values()), name
 
 
 def test_clock(ws):
@@ -111,6 +127,16 @@ def test_localsim_respects_the_table_cap(ws):
     code, out = run(ws, "localsim.py", "--tables", "100", "--opponents", "self")
     assert code == 0, out
     assert out.splitlines()[0].startswith("12 tables") and "<- you" in out
+
+
+def test_localsim_plays_earlier_versions(ws):
+    old = os.path.join(ws, ".submissions", "001-0a1b2c3d")
+    shutil.copytree(os.path.join(ws, "bot"), old)
+    code, out = run(ws, "localsim.py", "--tables", "2", "--opponents", ".submissions/001-0a1b2c3d/,nit")
+    assert code == 0, out
+    assert "001-0a1b2c3d_1" in out and "nit_2" in out and "<- you" in out
+    code, out = run(ws, "localsim.py", "--opponents", "tag")
+    assert code == 2 and "not found: tag" in out
 
 
 @pytest.mark.skipif(sys.platform != "darwin" or not shutil.which("sandbox-exec"), reason="needs macOS sandbox-exec")

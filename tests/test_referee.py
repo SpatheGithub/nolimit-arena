@@ -4,7 +4,9 @@ including a forced crash and resume."""
 import json
 import os
 import random
+import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -12,14 +14,23 @@ import time
 import pytest
 import yaml
 
-from arena.referee.builders import TOOLS, builder_env, claude_command, read_stream, team_settings, write_env_file
+from arena.referee.builders import (TOOLS, builder_env, builder_tmpdir, claude_command, read_stream, team_settings,
+                                    write_env_file)
 import arena.referee.__main__ as referee_main
 import arena.referee.event as event_module
+from arena.referee.commands import archived_bots, cleanup
 from arena.referee.config import Team, assign_teams, draw_event, load_config
 from arena.referee.event import Event, Paused
 from arena.referee.prompts import render_nudge
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TMP_ROOT = "/private/tmp/nlt"  # short like the real one, and apart from it so tests never touch a live event
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _remove_test_temp_folders():
+    yield
+    shutil.rmtree(TMP_ROOT, ignore_errors=True)
 
 
 def config(tmp_path, name, **over):
@@ -30,7 +41,7 @@ def config(tmp_path, name, **over):
            "schedule": {"build_minutes": 20, "submit_cooldown_seconds": 120, "tournaments": 2, "patch_minutes": 7},
            "table": {"points": "standard", "blinds": {"schedule": "doubling"}},
            "variant": "nlhe", "tournament": {"iterations": 12, "workers": 2},
-           "paths": {"workspaces_root": str(tmp_path / "workspaces")}}
+           "paths": {"workspaces_root": str(tmp_path / "workspaces"), "builder_tmp_root": TMP_ROOT}}
     for k, v in over.items():
         cfg[k] = {**cfg.get(k, {}), **v} if isinstance(v, dict) else v
     path = tmp_path / f"{name}.yaml"
@@ -57,6 +68,13 @@ def test_builder_command_and_settings(tmp_path):
     assert "WebFetch" in deny and "Agent" in deny and "Workflow" in deny and "mcp__*" in deny
     assert f"Read(/{teams[1].workspace}/**)" in deny and "Read(//ev/mini/**)" in deny
     assert s["sandbox"]["filesystem"]["allowRead"] == [teams[0].workspace, "/venv", "/python"]
+    assert f"/private/tmp/claude-{os.getuid()}" in s["sandbox"]["filesystem"]["denyRead"]  # the operator's temp folder
+    assert str(tmp_path) in s["sandbox"]["filesystem"]["denyRead"]  # every event's workspaces, not only this one's
+    fs = team_settings(teams[0], teams, "/ev/mini", REPO, "/venv", (), "/private/tmp/nl", "/private/tmp/nl/a1b2c3/b01"
+                       )["sandbox"]["filesystem"]
+    assert fs["allowRead"][-1] == "/private/tmp/nl/a1b2c3/b01" and fs["denyRead"][-1] == "/private/tmp/nl"
+    with pytest.raises(ValueError, match="longer than 30 bytes"):
+        builder_tmpdir("/private/tmp/nolimit-arena", "/ev/mini", "b01")
     assert s["permissions"]["allow"] == ["Bash"]
     assert s["sandbox"]["network"] == {"allowedDomains": [], "strictAllowlist": True}
     assert s["permissions"]["blockReadsOutsideWorkingDirectories"] and s["crossSessionInbound"] == "refuse"
@@ -152,6 +170,28 @@ def test_clock_check_resumes_finished_builders_with_backoff(tmp_path, monkeypatc
     assert launched == []
 
 
+def test_each_builder_gets_its_own_temp_folder(tmp_path):
+    # Without CLAUDE_CODE_TMPDIR every builder's Claude Code shares /private/tmp/claude-<uid> with the operator's.
+    ev = Event.new(config(tmp_path, "tmp", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    a, b = (ev.tmpdir(t.team) for t in ev.teams)
+    assert a != b and os.path.dirname(a) == os.path.dirname(b) and len(a.encode()) <= 30
+    assert all(stat.S_IMODE(os.stat(p).st_mode) == 0o700 for p in (a, os.path.dirname(a), TMP_ROOT))
+    fs = json.load(open(ev.p("settings", "b01.json")))["sandbox"]["filesystem"]
+    assert a in fs["allowRead"] and b not in fs["allowRead"] and TMP_ROOT in fs["denyRead"]
+    env = ev.builder_env("b01")
+    assert env["CLAUDE_CODE_TMPDIR"] == env["TMPDIR"] == a and "CLAUDE_CODE_TMPDIR" not in ev.builder_env()
+    cleanup(ev)
+    assert not os.path.exists(os.path.dirname(a))
+
+
+def test_gauntlet_field_can_pool_events(tmp_path):
+    for event, team, t in (("e1", "b01", "T1"), ("e1", "b01", "T6"), ("e2", "b01", "T6"), ("e3", "b01", "T6")):
+        os.makedirs(tmp_path / event / "bots" / team / t)
+    names = [e.name for e in archived_bots("event:e1,e2", root=str(tmp_path))]
+    assert names == ["e1/b01/T6", "e2/b01/T6"]
+
+
 def test_builders_never_inherit_the_referees_stdin(tmp_path, monkeypatch):
     # `claude -p` appends piped stdin to its prompt (seen on 2.1.300), so an inherited stdin would reach every builder.
     ev = Event.new(config(tmp_path, "stdin", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
@@ -163,6 +203,7 @@ def test_builders_never_inherit_the_referees_stdin(tmp_path, monkeypatch):
         ev.state["mock"] = mock
         ev._launch(ev.teams[0], "build", 0, time.time() + 60, None)
     assert [kw["stdin"] for kw in seen] == [subprocess.DEVNULL] * 2
+    assert seen[1]["env"]["CLAUDE_CODE_TMPDIR"] == ev.tmpdir(ev.teams[0].team)
 
 
 def test_usage_limit_pause_waits_for_the_reset_and_keeps_the_time_left(tmp_path, monkeypatch):

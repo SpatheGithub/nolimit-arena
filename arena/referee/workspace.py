@@ -5,7 +5,8 @@
       NOTES.md              the team's notes (collected by the referee)
       bot/                  the team's bot, starting as the template
       kit/                  RULES.md, agent_template.py, icm.py, localsim.py, check_bot.py,
-                            submit.py, clock.py, event.json, house_bots/,
+                            submit.py, clock.py, event.json, house_bots/ (the quick-build
+                            practice opponents only, see arena.house_bots.KIT_BOTS),
                             arena/ (the engine, runner and tournament code the referee runs)
       .brief/BRIEF.md       the builder's system-prompt brief (rendered by the referee)
       .clock.json           window deadlines (informational; the referee's copy rules)
@@ -20,6 +21,7 @@ import json
 import os
 import shutil
 
+from ..house_bots import KIT_BOTS, ZOO
 from ..tournament.card import save_card
 
 ARENA = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,12 +53,10 @@ def copy_arena_subset(dst: str) -> None:
 
 
 def copy_house_bots(dst: str) -> None:
-    src = os.path.join(ARENA, "house_bots")
+    """The practice opponents: the zoo's kit bots, never the strong ones."""
     os.makedirs(dst, exist_ok=True)
-    for name in sorted(os.listdir(src)):
-        path = os.path.join(src, name)
-        if os.path.isdir(path) and os.path.isfile(os.path.join(path, "agent.py")):
-            shutil.copytree(path, os.path.join(dst, name), ignore=IGNORE, dirs_exist_ok=True)
+    for name in KIT_BOTS:
+        shutil.copytree(ZOO[name]["path"], os.path.join(dst, name), ignore=IGNORE, dirs_exist_ok=True)
 
 
 def write_clock(ws: str, windows: list[dict]) -> None:
