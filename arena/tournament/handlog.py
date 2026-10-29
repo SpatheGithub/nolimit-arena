@@ -1,7 +1,9 @@
-"""Compressed hand logs: one zlib block of JSON per table, plus an index.
+"""Compressed hand logs, written live as tables finish.
 
-    <dir>/hands.zlog          concatenated blocks, in task order
-    <dir>/hands.index.json    [{"task", "iteration", "index", "entries", "fillers", "offset", "size"}]
+    <dir>/hands.meta.json     names, variant and table rules (written at the start, updated at the end)
+    <dir>/hands.zlog          one zlib block of JSON per table, in the order tables finished
+    <dir>/hands.index.jsonl   one line per table: {"task", "iteration", "index", "entries", "fillers",
+                              "offset", "size", "hands"}
 
 A table's JSON is a list of hands:
     [hand, button, [sb, bb, ante], seats, start_stacks, holes, board, decisions, payoffs, shown]
@@ -14,33 +16,61 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import zlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 
 
-def write_hand_log(directory: str, results: Iterable[dict]) -> int:
-    """Write tables (results in task order, each with a "log" block); return bytes written."""
-    os.makedirs(directory, exist_ok=True)
-    index = []
-    offset = 0
-    with open(os.path.join(directory, "hands.zlog"), "wb") as f:
-        for r in results:
-            block = r.get("log")
-            if not block:
-                continue
-            f.write(block)
-            index.append({"task": r["task_id"], "iteration": r["iteration"], "index": r["index"],
-                          "entries": r["entries"], "fillers": r["fillers"], "offset": offset,
-                          "size": len(block)})
-            offset += len(block)
-    with open(os.path.join(directory, "hands.index.json"), "w") as f:
-        json.dump(index, f)
-    return offset
+class HandLogWriter:
+    def __init__(self, directory: str, meta: dict):
+        os.makedirs(directory, exist_ok=True)
+        self.dir = directory
+        self.meta = {**meta, "started": time.time(), "finished": False}
+        self._write_meta()
+        self.data = open(os.path.join(directory, "hands.zlog"), "wb")
+        self.index = open(os.path.join(directory, "hands.index.jsonl"), "w")
+        self.offset = 0
+
+    def _write_meta(self) -> None:
+        tmp = os.path.join(self.dir, "hands.meta.json.tmp")
+        with open(tmp, "w") as f:
+            json.dump(self.meta, f)
+        os.replace(tmp, os.path.join(self.dir, "hands.meta.json"))
+
+    def add(self, result: dict) -> None:
+        block = result.get("log")
+        if not block:
+            return
+        self.data.write(block)
+        self.data.flush()
+        self.index.write(json.dumps({
+            "task": result["task_id"], "iteration": result["iteration"], "index": result["index"],
+            "entries": result["entries"], "fillers": result["fillers"], "offset": self.offset,
+            "size": len(block), "hands": result.get("hands", 0)}) + "\n")
+        self.index.flush()
+        self.offset += len(block)
+
+    def close(self, **extra) -> int:
+        self.data.close()
+        self.index.close()
+        self.meta.update(finished=True, finished_at=time.time(), **extra)
+        self._write_meta()
+        return self.offset
+
+
+def read_meta(directory: str) -> dict:
+    with open(os.path.join(directory, "hands.meta.json")) as f:
+        return json.load(f)
 
 
 def read_index(directory: str) -> list[dict]:
-    with open(os.path.join(directory, "hands.index.json")) as f:
-        return json.load(f)
+    """Index entries in task order (only complete lines, so safe while writing)."""
+    out = []
+    with open(os.path.join(directory, "hands.index.jsonl")) as f:
+        for line in f:
+            if line.endswith("\n"):
+                out.append(json.loads(line))
+    return sorted(out, key=lambda m: m["task"])
 
 
 def read_table(directory: str, meta: dict) -> list:

@@ -119,9 +119,11 @@ class TablePool:
         p.join(5)
         self.conns[slot].close()
 
-    def run(self, tasks: list[TableTask], progress=None, deadline: float | None = None) -> dict[int, dict]:
+    def run(self, tasks: list[TableTask], progress=None, deadline: float | None = None,
+            on_result=None) -> dict[int, dict]:
         """Play ``tasks``; with ``deadline`` (time.monotonic()), stop handing out
-        tasks once it passes and return the tables finished by then."""
+        tasks once it passes and return the tables finished by then.
+        ``on_result(result)`` sees each table as it finishes."""
         queue = collections.deque(tasks)
         retries: collections.Counter = collections.Counter()
         results: dict[int, dict] = {}
@@ -155,6 +157,8 @@ class TablePool:
                     queue.appendleft(task)
                     continue
                 results[result["task_id"]] = result
+                if on_result:
+                    on_result(result)
                 if progress:
                     progress(len(results), total)
             now = time.monotonic_ns()

@@ -1,14 +1,12 @@
 """Tournament: seating, fillers, determinism across worker counts, hand logs."""
 
-import json
 import os
-import zlib
 from collections import Counter
 
 import pytest
 
 from arena.engine.spec import NLHE
-from arena.tournament.handlog import bot_view, read_index, read_table
+from arena.tournament.handlog import bot_view, read_index, read_meta, read_table
 from arena.tournament.play import STAT_KEYS, Settings
 from arena.tournament.pool import Entry
 from arena.tournament.tournament import plan_tables, run_tournament
@@ -90,5 +88,8 @@ def test_bot_view_hides_other_hole_cards(tmp_path):
             assert v["seat"] in h["seats"] and len(h["hole"]) == 4
             assert v["seat"] not in h["shown"]
             assert set(h["shown"]) <= set(h["seats"])
-    raw = open(os.path.join(log_dir, "hands.zlog"), "rb").read()
-    assert len(raw) > 0 and json.loads(zlib.decompress(raw[:read_index(log_dir)[0]["size"]]))
+    index = read_index(log_dir)
+    assert [m["task"] for m in index] == sorted(m["task"] for m in index)
+    assert all(read_table(log_dir, m) for m in index)
+    meta = read_meta(log_dir)
+    assert meta["finished"] and meta["tables_total"] == len(index) and len(meta["entries"]) == 8

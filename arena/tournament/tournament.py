@@ -21,7 +21,7 @@ from collections import Counter
 from dataclasses import asdict
 
 from ..runner.loader import bot_hash
-from .handlog import write_hand_log
+from .handlog import HandLogWriter
 from .play import HIST_EDGES_US, STAT_KEYS, Settings, TableTask, derive
 from .pool import Entry, TablePool
 from .scoring import mean_ci
@@ -137,20 +137,30 @@ def run_tournament(entries: list[Entry], settings: Settings, iterations: int = 4
     the budget runs out are skipped (for local practice runs)."""
     workers = workers or default_workers(settings.timing)
     tasks = plan_tables(len(entries), iterations, settings.seats, seed)
+    writer = None
+    if log_dir and settings.hand_logs:
+        writer = HandLogWriter(log_dir, {
+            "entries": [e.name for e in entries], "variant": settings.spec.to_dict(),
+            "points": list(settings.points), "blinds": [list(b) for b in settings.blinds],
+            "level_hands": settings.level_hands, "hand_cap": settings.hand_cap, "seats": settings.seats,
+            "starting_stack": settings.starting_stack, "iterations": iterations, "seed": seed,
+            "tables_total": len(tasks)})
+
+    def on_result(r: dict) -> None:
+        if writer is not None:
+            writer.add(r)
+        r.pop("log", None)
+
     t0 = time.perf_counter()
     with TablePool(entries, settings, workers) as pool:
         t1 = time.perf_counter()
         deadline = time.monotonic() + time_budget_s if time_budget_s else None
-        results = pool.run(tasks, progress, deadline)
+        results = pool.run(tasks, progress, deadline, on_result)
         notes, events = pool.notes, pool.events
     if len(results) < len(tasks):
         tasks = [t for t in tasks if t.task_id in results]
     elapsed = time.perf_counter() - t1
-    log_bytes = 0
-    if log_dir and settings.hand_logs:
-        log_bytes = write_hand_log(log_dir, (results[t.task_id] for t in tasks))
-    for r in results.values():
-        r.pop("log", None)
+    log_bytes = writer.close(elapsed_s=elapsed, tables_done=len(results)) if writer is not None else 0
     crashed = sorted(t for t, r in results.items() if "crash" in r)
     import_problems: dict[str, str] = {}
     for r in results.values():

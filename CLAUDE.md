@@ -38,8 +38,9 @@ Keep this list current as commands are added.
 - `python -m arena.engine.xval 100000` (engine vs pokerkit; prints counts of the documented rule differences)
 - `python -m arena.bench [--workers 1,4,9]` and `python -m arena.bench --tournament [--workers 2,4,9]`
 - `python -m arena.tournament --zoo 40 --iterations 400 [--bot NAME=DIR] [--log DIR] [--json FILE]` (one tournament with the real runner)
-
-Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.
+- `python -m arena.viz --demo | --dir LOGDIR | --event ID` (live table viewer in the browser; the Browser pane's "table-viz" launch config runs the demo)
 - `python -m arena.referee new configs/event.yaml`
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X]`
 - `python -m arena.referee status|report|debrief|cleanup <event-id>`
+
+Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.
