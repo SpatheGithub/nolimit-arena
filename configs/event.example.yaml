@@ -56,4 +56,5 @@ kit:
 
 paths:
   workspaces_root: ~/nolimit-workspaces   # must be OUTSIDE this repo
+  builder_venv: ~/nolimit-workspaces/.venv  # Python + numpy builders run; outside the repo (created on first `new`)
   events_root: events                     # referee-only data inside the repo (gitignored)

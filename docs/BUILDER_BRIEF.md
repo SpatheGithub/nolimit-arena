@@ -31,6 +31,8 @@ You work alone and unattended. Nobody will answer questions or approve anything.
 - The build phase lasts {{BUILD_MINUTES}} minutes and ends at {{DEADLINE_HUMAN}}.
 - `python kit/clock.py` prints the time left. Check it every few steps; it's easy to lose track.
 - At the deadline this session is stopped mid-step without warning. Only submissions that `kit/submit.py` has already accepted count.
+- **Use the whole build phase.** A first accepted bot is the start, not the finish. Then play it against the house bots with `kit/localsim.py`, find where it loses points, improve that, check it and resubmit. Keep going until about a minute is left.
+- If you end your turn early, the referee resumes this session and tells you the time left.
 - {{TOURNAMENT_PLAN}}
 
 ## Today's event
@@ -93,6 +95,7 @@ In short:
 - **Keep heavy jobs small.** Precomputation competes with {{N_OTHERS}} other teams for CPU. Use a single process, keep jobs to a couple of minutes, and run them under `nice`.
 - **Re-check your assumptions about today's rules.** The variant and the points table change what good play is. Hand rankings, deck size and card-use rules may not be what hold'em intuition says.
 - **Check before every submission.** Run `kit/check_bot.py` before each submit. A broken late submission can cost more than it gains.
+- **Nobody can approve a command.** A shell command that would need approval is refused instead. Edit files with the Edit tool rather than `sed -i` chained with other commands, keep every path inside this workspace, and don't prefix commands with `VAR=value`.
 
 {{ARCHETYPE_BLOCK}}
 
@@ -107,7 +110,7 @@ Update `NOTES.md` as you go:
 
 If there are patch rounds later, this file is your memory.
 
-When you are done, or the clock is nearly out:
+When the clock is nearly out:
 
 1. Make sure your best bot is accepted.
 2. End with at most five lines saying what the bot does and the id of your last accepted submission.

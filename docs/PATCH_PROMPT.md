@@ -32,7 +32,9 @@ Your current bot keeps playing unless you submit a new one.
 
 Later tournaments weigh more, so a broken bot now costs more than it did before. Keeping your current bot is a legitimate choice when you aren't sure a change helps.
 
-Before you finish:
+Use the whole window: once a fix is in, test for the next weakness. If you end your turn early, the referee resumes this session and tells you the time left.
+
+When the clock is nearly out:
 
 1. Update NOTES.md.
 2. End with at most five lines: what you changed and your active submission id.

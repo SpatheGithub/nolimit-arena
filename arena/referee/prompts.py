@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 
+from ..tournament.wsstate import fmt_duration
 from ..variants.library import ONE_LINERS
 from .config import REPO, load_archetypes
 
@@ -58,6 +59,16 @@ def render_brief(card: dict, team: str, n_teams: int, deadline_human: str, arche
         "SIZE_LIMIT_MB": f"{card['bot_size_limit_mb']:g}", "COOLDOWN_SECONDS": f"{card['cooldown_seconds']:g}",
         "LOCALSIM_CAP": card["localsim_max_tables"], "ARCHETYPE_BLOCK": block,
     })
+
+
+def render_nudge(left_s: float, deadline_human: str, last_sid: str | None) -> str:
+    """The clock check the referee resumes a builder with when it ends its turn early."""
+    status = (f"Your latest accepted submission is {last_sid}." if last_sid
+              else "You have no accepted submission yet, so getting one accepted comes first.")
+    return (f"Clock check: {fmt_duration(left_s)} left; this window closes at {deadline_human}. {status} "
+            "Use the time: play your bot against the house bots with kit/localsim.py, find where it loses points, "
+            "improve that, run kit/check_bot.py, and resubmit only if the new version is better. "
+            "Keep NOTES.md current.")
 
 
 def render_patch(card: dict, k: int, patch_minutes: float, deadline_human: str, row: dict, rank: int, n_teams: int,

@@ -107,6 +107,16 @@ def write_report(ev) -> str:
             n = sum(1 for t in ev.teams if any(r["observed"] <= t_cut for r in ev.submissions(t.team)))
             lines.append(f"| {mnt} | {n} of {len(ev.teams)} |")
         lines += [""]
+    if not ev.mock:
+        lines += ["## Builder runs", "",
+                  "A run is one `claude -p` process. A clock-check resume restarts a builder that ended its turn "
+                  "with time left. \"Stopped by\" is how the last window ended.", "",
+                  "| Team | Runs | Clock-check resumes | Stopped by | Cost |", "| :- | -: | -: | :- | -: |"]
+        for t in ev.teams:
+            b = ev.state["builders"].get(t.team, {})
+            lines.append(f"| {t.team} | {b.get('launches', 0)} | {sum((b.get('nudges') or {}).values())} "
+                         f"| {b.get('stopped_by', 'unknown')} | ${b.get('cost_usd', 0.0):.2f} |")
+        lines += [""]
     lines += ["## Builder failures", ""]
     fails = []
     for t in ev.teams:
@@ -122,6 +132,13 @@ def write_report(ev) -> str:
     costs = {t.team: ev.state["builders"].get(t.team, {}).get("cost_usd", 0.0) for t in ev.teams}
     lines += ["", "## Cost", "", f"Total ${sum(costs.values()):.2f}; per builder: "
               + ", ".join(f"{k} ${v:.2f}" for k, v in sorted(costs.items())), ""]
+    if ev.cfg["auth"]["mode"] == "subscription" and not ev.mock:
+        lines += ["These are Claude Code's API-price estimates; on a Claude plan login nothing is billed per token.", ""]
+    meters = [u for u in (ev.state["builders"].get(t.team, {}).get("usage") for t in ev.teams) if u and u[0] is not None]
+    if meters:
+        lines += [f"Plan usage meter (five-hour window): {min(u[0] for u in meters):.0%} at the first reading, "
+                  f"{max(u[1] for u in meters):.0%} at the last. It counts everything on the same login, "
+                  "including your own sessions.", ""]
     os.makedirs(ev.p("report"), exist_ok=True)
     text = "\n".join(lines)
     with open(ev.p("report", "REPORT.md"), "w") as f:

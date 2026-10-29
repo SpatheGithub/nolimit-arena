@@ -12,8 +12,10 @@ import time
 import pytest
 import yaml
 
-from arena.referee.builders import TOOLS, builder_env, claude_command, team_settings
+from arena.referee.builders import TOOLS, builder_env, claude_command, read_stream, team_settings, write_env_file
 from arena.referee.config import Team, assign_teams, draw_event, load_config
+from arena.referee.event import Event
+from arena.referee.prompts import render_nudge
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -48,11 +50,12 @@ def test_draw_is_deterministic_and_checks_counts(tmp_path):
 
 def test_builder_command_and_settings(tmp_path):
     teams = [Team(f"b0{i}", "sonnet", None, str(tmp_path / f"ws/b0{i}")) for i in (1, 2, 3)]
-    s = team_settings(teams[0], teams, "/ev/mini", REPO)
+    s = team_settings(teams[0], teams, "/ev/mini", REPO, "/venv", ("/python",))
     deny = s["permissions"]["deny"]
     assert "WebFetch" in deny and "Agent" in deny and "Workflow" in deny and "mcp__*" in deny
     assert f"Read(/{teams[1].workspace}/**)" in deny and "Read(//ev/mini/**)" in deny
-    assert s["sandbox"]["filesystem"]["allowRead"][0] == teams[0].workspace
+    assert s["sandbox"]["filesystem"]["allowRead"] == [teams[0].workspace, "/venv", "/python"]
+    assert s["permissions"]["allow"] == ["Bash"]
     assert s["sandbox"]["network"] == {"allowedDomains": [], "strictAllowlist": True}
     assert s["permissions"]["blockReadsOutsideWorkingDirectories"] and s["crossSessionInbound"] == "refuse"
     sub = claude_command("go", model="sonnet", brief_file="/b.md", settings_file="/s.json", session_id="u1",
@@ -64,11 +67,82 @@ def test_builder_command_and_settings(tmp_path):
     api = claude_command("go", model="opus", brief_file="/b.md", settings_file="/s.json", session_id="u1",
                          auth_mode="api_key", resume=True, budget_usd=3)
     assert "--bare" in api and api[api.index("--resume") + 1] == "u1" and "--session-id" not in api
+    assert api[api.index("--append-system-prompt-file") + 1] == "/b.md"  # resumed runs get the brief too
+    nudge = render_nudge(125, "12:34:56", "003-abc")
+    assert "2m 05s left" in nudge and "12:34:56" in nudge and "003-abc" in nudge
+    assert "no accepted submission" in render_nudge(60, "12:34:56", None)
     assert api[api.index("--max-budget-usd") + 1] == "3"
     env = builder_env(REPO)
     assert env["PATH"].startswith(os.path.join(REPO, ".venv", "bin"))
     assert not any(k.startswith(("CLAUDECODE", "ANTHROPIC")) for k in env)
     assert env["CLAUDE_CODE_DISABLE_CLAUDE_MDS"] == "1"
+    assert "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB" not in env  # forces permission mode "default" on 2.1.300
+    venv = tmp_path / "venv"
+    venv.mkdir()
+    path = write_env_file(str(venv))
+    assert os.path.dirname(path) == str(venv)  # outside every workspace, so builders can't edit it
+    assert f'export PATH="{venv}/bin:$PATH"' in open(path).read()
+    assert builder_env(REPO, builder_venv=str(venv), env_file=path)["CLAUDE_ENV_FILE"] == path
+
+
+def test_read_stream_tells_interrupts_and_idle_runs_from_failures(tmp_path):
+    def init():
+        return {"type": "system", "subtype": "init", "session_id": "s1", "tools": ["Bash"]}
+
+    def result(cost, **kw):
+        return {"type": "result", "subtype": "success", "is_error": False, "session_id": "s1",
+                "total_cost_usd": cost, **kw}
+
+    tool = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}}
+    talk = {"type": "assistant", "message": {"content": [{"type": "text", "text": "Still my final bot."}]}}
+    # Shapes seen on 2.1.300: a working run, a run stopped by the deadline SIGINT mid-command, two idle replies.
+    rows = [init(), tool, result(0.10),
+            init(), tool, result(0.12, subtype="error_during_execution", is_error=True, terminal_reason="aborted_tools"),
+            init(), talk, result(0.13), init(), talk, result(0.14)]
+    log = tmp_path / "b01.jsonl"
+    log.write_text("".join(json.dumps(r) + "\n" for r in rows) + "not json\n")
+    s = read_stream(str(log))
+    assert s["errors"] == [] and s["interrupted"] == 1 and s["results"] == 4
+    assert s["idle_streak"] == 2 and s["run_calls"] == 0 and s["cost_usd"] == 0.14  # cost is cumulative
+    size = log.stat().st_size
+    retry = {"type": "system", "subtype": "api_retry", "attempt": 1, "error_status": 429, "error": "rate_limit"}
+    meter = {"type": "rate_limit_event", "rate_limit_info": {"status": "rejected",
+                                                            "unifiedWindows": {"five_hour": {"utilization": 1.0}}}}
+    with open(log, "a") as f:
+        for row in (init(), retry, meter, result(0.15, subtype="error_during_execution", is_error=True,
+                                                 terminal_reason="api_error")):
+            f.write(json.dumps(row) + "\n")
+    s = read_stream(str(log))
+    assert s["errors"] == ["usage_limit", "error_during_execution"] and s["retries"] == 1  # a retry alone isn't fatal
+    assert s["idle_streak"] == 3 and s["usage"] == 1.0
+    s = read_stream(str(log), errors_from=log.stat().st_size)  # after a resume, old errors don't count
+    assert s["errors"] == [] and s["events_since"] == 0 and s["results"] == 5
+    assert read_stream(str(log), errors_from=size)["events_since"] == 4
+
+
+def test_clock_check_resumes_finished_builders_with_backoff(tmp_path, monkeypatch):
+    ev = Event.new(config(tmp_path, "nudge", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    launched = []
+    monkeypatch.setattr(ev, "_alive", lambda team: False)
+    monkeypatch.setattr(ev, "_launch", lambda t, kind, k, end, prompt, resume=None: launched.append((t.team, prompt, resume)))
+    os.makedirs(ev.p("logs"))
+    init = {"type": "system", "subtype": "init", "session_id": "s"}
+    done = {"type": "result", "subtype": "success", "is_error": False, "total_cost_usd": 0.1}
+    tool = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}}
+    for team, rows in (("b01", [init, tool, done]), ("b02", [init, done])):  # b02's last run was an idle reply
+        with open(ev.p("logs", f"{team}.jsonl"), "w") as f:
+            f.writelines(json.dumps(r) + "\n" for r in rows)
+        ev.state["builders"][team] = {"phase": "build:0", "launches": 1, "session_id": "s"}
+    end = time.time() + 200
+    ev._nudge_finished("build", 0, end)
+    assert [(t, r) for t, _, r in launched] == [("b01", True)] and "left" in launched[0][1]
+    ev.state["builders"]["b02"]["ended"] -= 61  # the backoff after one idle reply has passed
+    ev._nudge_finished("build", 0, end)
+    assert [t for t, _, _ in launched] == ["b01", "b01", "b02"]  # b01's stub launch never "ended"
+    launched.clear()
+    ev._nudge_finished("build", 0, time.time() + 30)  # too close to the deadline
+    assert launched == []
 
 
 def run_referee(args, events_root, **kw):

@@ -39,6 +39,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("event")
     p.add_argument("bot_dir")
     p.add_argument("--team", required=True)
+    p = sub.add_parser("isolation", help="scripted claude -p run proving builder isolation (costs a little usage)")
+    p.add_argument("event")
+    p.add_argument("--team", default="b01")
+    p.add_argument("--model", default="haiku")
     p = sub.add_parser("gauntlet")
     p.add_argument("bot_dir")
     p.add_argument("--field", default="latest")
@@ -76,6 +80,13 @@ def main(argv: list[str] | None = None) -> int:
         print(enter(ev, a.bot_dir, a.team))
     elif a.cmd == "cleanup":
         print(cleanup(ev))
+    elif a.cmd == "isolation":
+        from .isolation import run_isolation_proof
+        r = run_isolation_proof(ev, a.team, a.model)
+        for c in r["checks"]:
+            print(f"  {'pass' if c['ok'] else 'FAIL'}  {c['check']}")
+        print(("PASSED" if r["passed"] else "FAILED") + f": see {ev.p('report', 'ISOLATION.md')}")
+        return 0 if r["passed"] else 1
     elif a.cmd == "debrief":
         print("debrief arrives with milestone 7 (it makes one paid claude -p call, only when you ask)")
         return 1

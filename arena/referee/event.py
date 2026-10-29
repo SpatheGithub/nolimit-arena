@@ -36,14 +36,18 @@ from ..tournament.tournament import default_workers, run_tournament
 from ..tournament.validate import validate
 from ..tournament.wsstate import fmt_clock, submissions as ws_submissions, write_json_atomic
 from ..variants.render import render_event_md
-from .builders import builder_env, claude_command, mock_command, read_stream, team_settings, write_settings
+from .builders import (builder_env, claude_command, ensure_builder_venv, env_file, mock_command, python_base_prefix,
+                       read_stream, team_settings, write_settings)
 from .config import REPO, Team, draw_event, load_config
-from .prompts import render_brief, render_patch
+from .prompts import render_brief, render_nudge, render_patch
 from .workspace import build_workspace, write_clock
 
 EVENTS_ROOT = os.environ.get("ARENA_EVENTS_ROOT") or os.path.join(REPO, "events")
 HOUSE = os.path.join(REPO, "arena", "house_bots")
 MOCK_BEHAVIORS = ["normal"] * 6 + ["breaker", "slowpoke", "late", "silent"]
+NUDGE_MIN_S = 45   # don't resume a finished builder with less than this left (scaled)
+MAX_NUDGES = 25    # per builder per window, so a builder that keeps stopping can't loop forever
+NUDGE_BACKOFF_S = 60  # wait after an idle reply (no tool calls), doubling with each one in a row (scaled)
 
 
 class Paused(Exception):
@@ -113,15 +117,21 @@ class Event:
         with open(os.path.join(d, "config.yaml"), "w") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
         events_dir = os.path.realpath(d)
+        builder_venv = os.path.expanduser(cfg["paths"].get("builder_venv", "~/nolimit-workspaces/.venv"))
+        if os.path.realpath(builder_venv).startswith(os.path.realpath(REPO) + os.sep):
+            raise ValueError("paths.builder_venv must be outside the arena repo")
+        builder_venv = ensure_builder_venv(builder_venv, REPO)
+        base_prefix = python_base_prefix(builder_venv)
         for t in teams:
             if os.path.exists(t.workspace):
                 raise FileExistsError(f"workspace {t.workspace} already exists")
             build_workspace(t.workspace, None, "# The event hasn't started yet.\n")
             write_settings(os.path.join(d, "settings", f"{t.team}.json"),
-                           team_settings(t, teams, events_dir, os.path.realpath(REPO)))
+                           team_settings(t, teams, events_dir, os.path.realpath(REPO), builder_venv, (base_prefix,)))
         write_json_atomic(os.path.join(d, "state.json"), {
             "event": event_id, "phase": "created", "created": time.time(), "notes": notes,
-            "builders": {}, "windows": [], "frozen": {}, "tournaments": {}, "events": []})
+            "builder_venv": builder_venv, "builders": {}, "windows": [], "frozen": {}, "tournaments": {},
+            "events": []})
         return cls(event_id, root)
 
     # ------------------------------------------------------------ run
@@ -186,10 +196,12 @@ class Event:
             if stagger and i + 1 < len(self.teams):
                 time.sleep(stagger)
 
-    def _launch(self, t: Team, phase: str, k: int, deadline: float, prompt: str | None) -> None:
+    def _launch(self, t: Team, phase: str, k: int, deadline: float, prompt: str | None,
+                resume: bool | None = None) -> None:
         os.makedirs(self.p("logs"), exist_ok=True)
         b = self.state["builders"].setdefault(t.team, {})
-        resume = phase == "patch" and bool(b.get("session_id"))
+        if resume is None:
+            resume = phase == "patch" and bool(b.get("session_id"))
         if self.mock:
             behavior = MOCK_BEHAVIORS[derive(self.card["seed"], t.team) % len(MOCK_BEHAVIORS)]
             cmd = mock_command(t.workspace, phase, deadline, derive(self.card["seed"], t.team, phase, k), behavior)
@@ -203,16 +215,37 @@ class Event:
             cmd = claude_command(prompt or first, model=t.model, brief_file=self.p("briefs", f"{t.team}.md"),
                                  settings_file=self.p("settings", f"{t.team}.json"), session_id=session,
                                  auth_mode=self.cfg["auth"]["mode"], resume=resume, budget_usd=budget)
-            env = builder_env(REPO)
+            env = self.builder_env()
         out = open(self.p("logs", f"{t.team}.jsonl"), "a")
         err = open(self.p("logs", f"{t.team}.stderr"), "a")
         proc = subprocess.Popen(cmd, cwd=t.workspace, env=env, stdout=out, stderr=err, start_new_session=True)
         out.close()
         err.close()
-        b.update(pid=proc.pid, phase=f"{phase}:{k}", started=time.time(), exit=None)
+        b.update(pid=proc.pid, phase=f"{phase}:{k}", started=time.time(), exit=None,
+                 launches=b.get("launches", 0) + 1)
+        b.pop("ended", None)
         self.save()
         self._procs = getattr(self, "_procs", {})
         self._procs[t.team] = proc
+
+    def builder_env(self) -> dict:
+        venv = self.state["builder_venv"]
+        return builder_env(REPO, builder_venv=venv, env_file=env_file(venv))
+
+    def stream(self, team: str) -> dict:
+        """read_stream of a team's log, cached until the log changes: finished builders
+        are polled twice a second, and a long event's logs run to megabytes."""
+        path = self.p("logs", f"{team}.jsonl")
+        errors_from = self.state["builders"].get(team, {}).get("errors_from", 0)
+        try:
+            st = os.stat(path)
+            key = (st.st_size, st.st_mtime_ns, errors_from)
+        except OSError:
+            key = None
+        cache = self.__dict__.setdefault("_streams", {})
+        if key is None or cache.get(path, (None,))[0] != key:
+            cache[path] = (key, read_stream(path, errors_from))
+        return cache[path][1]
 
     def _alive(self, team: str) -> bool:
         proc = getattr(self, "_procs", {}).get(team)
@@ -229,7 +262,11 @@ class Event:
 
     def _stop_all(self) -> None:
         live = [t.team for t in self.teams if self._alive(t.team)]
+        for t in self.teams:
+            if t.team not in live and t.team in self.state["builders"]:
+                self.state["builders"][t.team]["stopped_by"] = "finished"
         for sig, wait in ((signal.SIGINT, 10), (signal.SIGTERM, 30), (signal.SIGKILL, 5)):
+            sent = time.time()
             for team in live:
                 pid = self.state["builders"][team]["pid"]
                 try:
@@ -239,6 +276,9 @@ class Event:
             end = time.time() + wait
             while time.time() < end and any(self._alive(t) for t in live):
                 time.sleep(0.2)
+            for team in live:
+                if not self._alive(team):
+                    self.state["builders"][team]["stopped_by"] = f"{sig.name} after {time.time() - sent:.1f}s"
             live = [t for t in live if self._alive(t)]
             if not live:
                 break
@@ -247,11 +287,12 @@ class Event:
             proc = getattr(self, "_procs", {}).get(t.team)
             if proc is not None:
                 b["exit"] = proc.returncode
-            s = read_stream(self.p("logs", f"{t.team}.jsonl"))
+            s = self.stream(t.team)
             if s["session_id"] and not self.mock:
                 b["session_id"] = s["session_id"]
             b["cost_usd"] = s["cost_usd"]
             b["errors"] = s["errors"]
+            b["usage"] = [s["usage_first"], s["usage"]]
         self.save()
 
     # ------------------------------------------------------------ windows
@@ -261,20 +302,53 @@ class Event:
         if time.time() < w["end"]:
             for t in self.teams:
                 if not self._alive(t.team) and self.state["builders"].get(t.team, {}).get("phase") != f"{kind}:{k}":
-                    self._launch(t, kind, k, w["end"], None)
-        early_check = w["start"] + min(120 * self.scale, (w["end"] - w["start"]) / 2)
-        checked = False
+                    # After a pause, a builder with a session continues it rather than starting over.
+                    resume = not self.mock and bool(self.stream(t.team)["session_id"])
+                    subs = self.submissions(t.team)
+                    prompt = render_nudge(w["end"] - time.time(), fmt_clock(w["end"]),
+                                          subs[-1]["sid"] if subs else None) if resume else None
+                    self._launch(t, kind, k, w["end"], prompt, resume=resume or None)
+        next_check = w["start"] + min(120 * self.scale, (w["end"] - w["start"]) / 2)
         while time.time() < w["end"]:
             self._observe_submissions()
-            if not self.mock and not checked and time.time() > early_check:
-                checked = True
+            if not self.mock and time.time() > next_check:
+                next_check = time.time() + 30 * self.scale  # usage limits can hit at any point in a window
                 self._check_failures()
+            if not self.mock:
+                self._nudge_finished(kind, k, w["end"])
             time.sleep(0.5)
         self._observe_submissions()
         self._stop_all()
         self._observe_submissions(final=True)
         self.state["phase"] = f"freeze:{k + 1}"
         self.save()
+
+    def _nudge_finished(self, kind: str, k: int, end: float) -> None:
+        """`claude -p` stops when the model ends its turn, which builders do minutes
+        before the deadline. Resume each one that finished cleanly, with the time left."""
+        left = end - time.time()
+        if left < NUDGE_MIN_S * self.scale:
+            return
+        window = f"{kind}:{k}"
+        for t in self.teams:
+            b = self.state["builders"].get(t.team, {})
+            if b.get("phase") != window or self._alive(t.team):
+                continue
+            s = self.stream(t.team)
+            nudges = b.setdefault("nudges", {})
+            # A run without a result event, or any error, is _check_failures' business, not a nudge's.
+            if s["errors"] or s["results"] < b.get("launches", 0) or nudges.get(window, 0) >= MAX_NUDGES:
+                continue
+            # A builder that answered the last clock checks without doing anything waits longer each time.
+            ended = b.setdefault("ended", time.time())
+            if s["idle_streak"] and time.time() - ended < NUDGE_BACKOFF_S * self.scale * 2 ** (s["idle_streak"] - 1):
+                continue
+            nudges[window] = nudges.get(window, 0) + 1
+            b["session_id"] = s["session_id"] or b.get("session_id")
+            subs = self.submissions(t.team)
+            self._launch(t, kind, k, end, render_nudge(left, fmt_clock(end), subs[-1]["sid"] if subs else None),
+                         resume=True)
+            self.note("nudged", team=t.team, window=window, left_s=round(left))
 
     def resume_paused(self) -> None:
         """Restart the window that was paused, with its full length, and relaunch builders."""
@@ -285,15 +359,18 @@ class Event:
             write_clock(t.workspace, [{"name": f"{w['kind'].title()} window", "start": w["start"], "end": w["end"],
                                        "then": "The next tournament starts with your latest accepted submission.",
                                        "submit": True}])
-            self.state["builders"].get(t.team, {}).pop("phase", None)
+            b = self.state["builders"].setdefault(t.team, {})
+            b.pop("phase", None)
+            log = self.p("logs", f"{t.team}.jsonl")
+            b["errors_from"] = os.path.getsize(log) if os.path.exists(log) else 0  # the errors that paused us are done
         self.state["paused"] = None
         self.note("resumed", window=w["kind"])
 
     def _check_failures(self) -> None:
         bad = []
         for t in self.teams:
-            s = read_stream(self.p("logs", f"{t.team}.jsonl"))
-            if s["errors"] or (not self._alive(t.team) and s["events"] == 0):
+            s = self.stream(t.team)
+            if s["errors"] or (not self._alive(t.team) and s["events_since"] == 0):
                 bad.append(t.team)
         if len(bad) > 0.2 * len(self.teams):
             self._stop_all()

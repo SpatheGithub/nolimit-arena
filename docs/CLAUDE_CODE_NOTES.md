@@ -179,7 +179,7 @@ The user has a claude.ai Enterprise login and no API key, so `--bare` isn't avai
 | Subagents, workflows, web tools, cross-session messaging, cloud triggers, artifact publishing | The `--tools` allowlist, mirrored as deny rules, plus `crossSessionInbound: "refuse"` and `disableWorkflows: true` |
 | Other sessions' transcripts (`~/.claude/projects/*`), the arena repo (`LESSONS.md`, house bots) and `~/.claude.json` | File tools: `--restricted` or `blockReadsOutsideWorkingDirectories`. Bash: sandbox `denyRead` (see Gaps). |
 | Parent-session environment (`CLAUDECODE`, `CLAUDE_CODE_*`, messaging token, `ANTHROPIC_BASE_URL`) | Launch each builder with a minimal, explicit environment. Never pass the referee's `os.environ` through. |
-| Credentials in the environment (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`) | `sandbox.credentials.envVars` deny entries and `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`. Reading another process's environment (`ps eww`) and the macOS Keychain from inside the sandbox are **not covered by the docs; test them.** |
+| Credentials in the environment (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`) | `sandbox.credentials.envVars` deny entries. **Not** `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: on 2.1.300 it forces permission mode `default`, so every Bash call is refused (see "Milestone 5 results"). Reading another process's environment (`ps eww`) and the macOS Keychain from inside the sandbox are **not covered by the docs; test them.** |
 
 ### Recommended builder invocation: `auth.mode: subscription`
 
@@ -189,19 +189,19 @@ Launch the builder with the workspace as cwd, in its own process group (`start_n
 env -i \
   HOME="$HOME" USER="$USER" LOGNAME="$USER" LANG=en_US.UTF-8 \
   SHELL=/bin/zsh TMPDIR="$TMPDIR" \
-  PATH="<repo>/.venv/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  PATH="/Users/<you>/nolimit-workspaces/.venv/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/<you>/.local/bin" \
+  CLAUDE_ENV_FILE=/Users/<you>/nolimit-workspaces/.venv/arena-env.sh \
   CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 \
   CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 \
-  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 \
   CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 \
   ENABLE_CLAUDEAI_MCP_SERVERS=false \
   DISABLE_AUTOUPDATER=1 \
   /Users/<you>/.local/bin/claude -p "The build phase has started. Read EVENT.md, then build and submit your bot." \
     --model <alias> \
-    --append-system-prompt-file /Users/<you>/nolimit-workspaces/<event>/<team>/.brief/BRIEF.md \
+    --append-system-prompt-file /Users/<you>/<repo>/events/<id>/briefs/<team>.md \
     --settings /Users/<you>/<repo>/events/<id>/settings/<team>.json \
     --restricted \
-    --tools "Bash,Read,Edit,Write,Glob,Grep" \
+    --tools "Bash,Read,Edit,Write,Glob,Grep,NotebookEdit" \
     --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
     --disable-slash-commands \
     --permission-mode acceptEdits \
@@ -222,7 +222,7 @@ env -i \
   - Have the user run `claude setup-token` once and store the token in the macOS Keychain, never in the repo or `events/`.
   - The referee passes it as `CLAUDE_CODE_OAUTH_TOKEN`, optionally with a per-event `CLAUDE_CONFIG_DIR` (for example `<repo>/events/<id>/claude-home`).
   - Gains: builder state stays out of the operator's `~/.claude` (transcripts, `.claude.json`, synced skills); 40 processes don't share one refreshing OAuth login; claude.ai connectors aren't fetched.
-  - Costs: the token sits in every builder process's environment. Deny it in `sandbox.credentials.envVars`, keep the scrub on, and test the `ps eww` leak. `--resume` must use the same `CLAUDE_CONFIG_DIR`. With a token instead of a Team or Enterprise `/login`, a mod can override deny rules [PERM]. That doesn't matter here only because hooks and plugins, and with them mods, are off.
+  - Costs: the token sits in every builder process's environment. Deny it in `sandbox.credentials.envVars` and test the `ps eww` leak (the env scrub can't be used; see "Milestone 5 results"). `--resume` must use the same `CLAUDE_CONFIG_DIR`. With a token instead of a Team or Enterprise `/login`, a mod can override deny rules [PERM]. That doesn't matter here only because hooks and plugins, and with them mods, are off.
 
 ### Recommended builder invocation: `auth.mode: api_key`
 
@@ -230,7 +230,7 @@ Use the same environment, minus the variables `--bare` already covers, plus the 
 
 ```bash
 env -i HOME=… USER=… LOGNAME=… LANG=… SHELL=… TMPDIR=… PATH="<repo>/.venv/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
-  ANTHROPIC_API_KEY=<key> CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 DISABLE_AUTOUPDATER=1 \
+  ANTHROPIC_API_KEY=<key> DISABLE_AUTOUPDATER=1 CLAUDE_ENV_FILE=… \
   claude --bare -p "<prompt>" \
     --model <alias> \
     --append-system-prompt-file <abs>/.brief/BRIEF.md \
@@ -244,7 +244,7 @@ env -i HOME=… USER=… LOGNAME=… LANG=… SHELL=… TMPDIR=… PATH="<repo>/
     [--max-budget-usd <x>] [--exclude-dynamic-system-prompt-sections]
 ```
 
-`--bare` still reads settings files [PERM], so keep `blockReadsOutsideWorkingDirectories` in the builder settings. Adding `--restricted` to `--bare` would also skip the user, project and local files; that combination isn't documented, so test it before using it.
+`--bare` still reads settings files [PERM], so keep `blockReadsOutsideWorkingDirectories` in the builder settings. The env scrub is left out here too: it broke the permission mode in subscription mode, and `--bare` with it is untested; `sandbox.credentials.envVars` already unsets the key for Bash. Adding `--restricted` to `--bare` would also skip the user, project and local files; that combination isn't documented, so test it before using it.
 
 ### Patch-round resume (both modes)
 
@@ -254,7 +254,7 @@ Use the same cwd, environment and flags, with the rendered patch prompt. Replace
 
 1. **Paths.** Use macOS paths (`/Users/<you>/…`) with `~` expanded. Keep every sandbox path absolute.
 2. **Turn on `permissions.blockReadsOutsideWorkingDirectories: true`.** It is simpler than listing 39 siblings and also covers `~/.claude/projects`, the repo and the home directory.
-3. **Sandbox `denyRead` should cover the whole arena repo, not only `events/`.** Otherwise Bash can read `LESSONS.md`, past events' material and `arena/house_bots/`. Add `allowRead` for `<repo>/.venv`, since builders need the venv's Python. Also deny `~/.claude/projects` (every session's transcripts, including sibling builders') and `~/.claude.json`. Don't deny all of `~/.claude`: the Bash tool may need its shell-snapshot files there. Verify Bash still works after the change.
+3. **Sandbox `denyRead` should cover the whole arena repo, not only `events/`.** Otherwise Bash can read `LESSONS.md`, past events' material and `arena/house_bots/`. Builders therefore can't use `<repo>/.venv`; they get their own venv outside the repo, in `allowRead` (applied at milestone 5, see "Milestone 5 results"). Also deny `~/.claude/projects` (every session's transcripts, including sibling builders') and `~/.claude.json`. Don't deny all of `~/.claude`: the Bash tool may need its shell-snapshot files there. Verify Bash still works after the change.
 4. **Deny more tools.** Add `SendMessage`, `ListAgents`, `Skill`, `RemoteTrigger` (cloud scheduled tasks), `Artifact` (publishing to claude.ai), `CronCreate`, `Monitor`, `PushNotification`, `NotebookEdit`, `EnterWorktree` and `mcp__*` to `permissions.deny`, as a second layer behind the `--tools` allowlist.
 5. **Add the top-level keys:** `disableAllHooks: true`, `autoMemoryEnabled: false`, `disableWorkflows: true`, `disableClaudeAiConnectors: true`, `syncClaudeAiSkills: false`, `syncClaudeAiPlugins: false`, `crossSessionInbound: "refuse"`.
 6. **Credential variables.** Add `CLAUDE_CODE_OAUTH_TOKEN` and `ANTHROPIC_AUTH_TOKEN` to `sandbox.credentials.envVars` with `mode: deny`.
@@ -286,7 +286,7 @@ From [KB-TE]:
    - The file is valid JSON and under 2 MiB.
    - Every path is absolute and exists, and no `~` or `/home/you` remains.
    - `Read(//…)` rules cover every sibling workspace and the events dir.
-   - `allowRead` is exactly the team's own workspace, plus `.venv`.
+   - `allowRead` is exactly the team's own workspace, plus the builder venv and its interpreter copy.
    - The key set matches the reviewed list in this note.
 4. **Offline schema check (optional).** Copy a generated file to `<scratch>/.claude/settings.json` and run `claude doctor` from `<scratch>`. First confirm that `doctor` reports a deliberately broken copy; it makes no model call but does contact `api.anthropic.com`.
 5. **Ancestor scan.** No ancestor of `workspaces_root` contains `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/` or `.mcp.json`. `workspaces_root` is outside the repo and isn't a git repository.
@@ -327,6 +327,69 @@ Use a cheap model alias for the isolation-proof run, and cap it with `--max-turn
 9. **Synced items.** `~/.claude/skills/synced` and `~/.claude/plugins/synced` are unchanged after the runs, and nothing moved to `.trash`.
 10. **Combined flags.** If `--safe-mode` is added to `--restricted`, the canary still passes and the sentinel still holds.
 11. **40-way concurrency (later, a user-run event).** Watch for OAuth refresh failures when 40 processes share one Keychain login. The setup-token variant shouldn't have this problem.
+
+## Milestone 5 results (2026-10-29, 2.1.300, claude.ai login)
+
+### Isolation proof
+
+`python -m arena.referee isolation <event>` runs a scripted `claude -p` session (Haiku) with one builder's exact settings, command line and environment, then judges from files and the stream, not from the model's account. Final run: **10 of 10 checks pass**, 12 turns, about 15 s, reported cost $0.004. Each negative probe was stopped by the layer meant to stop it:
+
+| Probe | Stopped by | What the session saw |
+| :- | :- | :- |
+| `cat` the sibling workspace's or the events dir's canary | Sandbox `denyRead` | `Operation not permitted` |
+| Read tool on the same files | `Read(//…)` deny rules | `File is in a directory that is denied by your permission settings.` |
+| `curl https://example.com` (output inside the workspace) | Sandbox network proxy | `CONNECT tunnel failed, response 403`, then `<sandbox_violations> deny network-outbound example.com:443 (host is not on the allow list)` appended to the tool result |
+| Python `urllib` to the same host | Sandbox network proxy | `Tunnel connection failed: 403 Forbidden`, same violation line |
+| Bash write to `~` or into the sibling workspace | Sandbox write policy | `Operation not permitted` |
+| Write tool outside the workspace | `--restricted` | `… is outside <ws>; --restricted confines the file tools to the working directory.` |
+
+- **`strictAllowlist` from `--settings` is honored:** no prompt, the connection is refused.
+- **`system/init`:** `cwd` is the workspace, `permissionMode` is `acceptEdits`, `claude_code_version` is `2.1.300`, `apiKeySource` is `none` (keychain login), and `tools` is exactly `Bash, Edit, Glob, Grep, Read, Write`, so the sentinel is gone. `mcp_servers`, `skills` and `slash_commands` are empty. `plugins` lists four built-ins only (`cc-plugin-sec-default`, `cc-plugin-agents-md`, `cc-plugin-telemetry`, `cc-plugin-plugin-authoring`, all `path: builtin`), none of the operator's synced plugins. `agents` lists the built-in subagent types, which can't run without the Agent tool.
+- Claude Code creates an empty `<workspace>/.claude/.cc-writes/` during a sandboxed session.
+
+### What had to change (each found by a failed run)
+
+1. **`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` forces permission mode `default`.** `system/init` reported `default` despite `--permission-mode acceptEdits`, and every Bash call was refused with "requires approval, and this session has no approval surface". Removing variables one at a time pinned it on this one. The referee no longer sets it; `sandbox.credentials.envVars` still unsets the credential variables for Bash. Until this was fixed, the negative probes "passed" only because nothing ran at all; positive controls are what caught it.
+2. **Sandbox auto-allow refuses some compound commands** (`a && b`). The settings now carry `permissions.allow: ["Bash"]`. The OS sandbox, not the permission layer, is what confines Bash.
+3. **`blockReadsOutsideWorkingDirectories` also gates Bash arguments.** A command that names a path outside the working directories (`curl -o /dev/null …`) goes to the permission flow and is denied under `--permission-prompts none`: "curl names '/dev/null', outside the working directories, which the read block does not allow without asking". Builders should keep paths inside the workspace.
+4. **The Bash tool rebuilds `PATH` from the login shell.** Neither the process's `PATH` nor `env.PATH` in settings reached Bash; the operator's `~/.bash_profile` (conda init, `~/.local/bin`) won. `CLAUDE_ENV_FILE` works, and Claude Code doesn't modify the file. The referee points it at `<builder venv>/arena-env.sh` (venv first on `PATH`, `PYTHONDONTWRITEBYTECODE=1`). That location is readable but not writable for builders, so a builder can't add commands to a file sourced before every Bash call.
+5. **The builder venv can't live in the repo or point into `~/.local/share`.** The sandbox denies the repo by design. It also denies `~/.local/share/uv/python/` (`Operation not permitted`) although no setting of ours names it, and uv's interpreters live there behind a `cpython-3.12-…` symlink. `allowRead` on the versioned interpreter directory didn't help, because the symlink sits in the denied parent. The referee now copies the standalone interpreter to `~/nolimit-workspaces/.python`, 85 MB with the stdlib byte-compiled once (builders can't write bytecode there). It then builds `~/nolimit-workspaces/.venv` from that copy, with numpy copied in. Both are in `allowRead`; builders can read them but not write them.
+
+### Subscription accounting
+
+- **`rate_limit_event`** carries `rateLimitType: five_hour`, `utilization` and `resetsAt`. It read 0.56 at the isolation run, a figure that includes the operator's own concurrent session. It also carries `overageStatus: rejected` with `overageDisabledReason: org_level_disabled`: on this account, reaching the five-hour limit stops builders instead of billing overage.
+- **`total_cost_usd` is filled in for subscription runs.** It is a notional API-price cost, not a bill.
+- **One `rate_limit_event` per run**, right after `system/init`. Also seen: `system/thinking_tokens`, `system/permission_denied` and `tool_progress` events, which the referee ignores.
+
+### Smoke events (2 Sonnet builders, 4-minute build, 1 tournament)
+
+| | Run 1 (`m5-smoke`) | Run 2 (`m5-smoke-2`) |
+| :- | :- | :- |
+| Referee | as built at milestone 4 | resumes builders that end their turn early (clock checks) |
+| Builder runs | 1 each | 18 and 16 (17 and 15 clock checks) |
+| Time spent working | about 20 s each, then idle for 3 min 40 s | 123 s and 139 s of the 240 s |
+| Accepted submissions | 1 each, at 19 s | b01: 1 at 21 s; b02: 2, at 15 s and 141 s |
+| Reported cost | $0.09 + $0.08 | $0.24 + $0.18, of which about $0.14 was 28 one-line "still my final bot" replies |
+| At the deadline | both had already exited (code 0) | both had already exited (code 0) |
+
+- **Builders stop as soon as they feel done.** `claude -p` ends when the model ends its turn, and in run 1 both did after 4 turns (read EVENT.md, write a heuristic bot, check, submit). The brief now says the whole window is the job. The referee resumes a builder that ends its turn with at least 45 s left, saying the time left and its latest submission. After a reply with no tool calls it waits 60 s, doubling with each such reply in a row; run 2 predates that backoff.
+- **Working time costs about $0.065 per builder-minute** at this context size (run 2: $0.28 over 4.4 working minutes; mostly cache reads and writes of a 20k to 50k-token context).
+- **`--resume` keeps the session id** across all 34 resumed runs. `total_cost_usd` is the session's cumulative total, and `--append-system-prompt-file` is accepted on resumed runs.
+- **A compound command containing `sed -i` needs approval**, even with `permissions.allow: ["Bash"]`: "This Bash command contains multiple operations. The following part requires approval: sed -i …". Both builders lost a turn to it and switched to the Edit tool. The brief now says to edit files with the Edit tool and not to chain `sed -i`.
+- **Deadline SIGINT, tested on its own** (Haiku, `sleep 30` running in the sandbox): the process exits with code 0 within 1.3 s and kills the sandboxed command. The last event is a `result` with `subtype: error_during_execution`, `is_error: true`, `terminal_reason: "aborted_tools"` and the cost filled in. The session then resumes normally. The referee counts `aborted_*` endings as interruptions, not failures; before that fix, every builder stopped at the build deadline would have looked failed and paused the event at the first patch window.
+- **Isolation held in the real builder logs:** neither event's logs contain another workspace's or the events directory's canary token.
+
+### Estimate: a 40-builder, 6-tournament event at the defaults
+
+- **Builder time:** a 20-minute build plus five 7-minute patch windows is 55 minutes per builder, so **2,200 builder-minutes**.
+- **Wall clock:** about 65 minutes. That is 55 minutes of windows plus six freezes and tournaments of about a minute each (40 bots × 400 iterations took 63 s at milestone 2).
+- **Cost, using Claude Code's API-price estimates:**
+  - About **$80** if builders behave as in run 2: working 55% of each window at $0.065 a minute, with backed-off clock checks costing little.
+  - About **$290** if they stay busy all the time and longer contexts double the per-minute rate.
+  - **Central guess: $150**, about $3.75 per builder. With an API key this is the bill.
+- **On this claude.ai login:** the five-hour meter went from 63% to 65% during run 2, which includes the operator's own session. So the builders' $0.42 used at most 2 points, about 5 points per dollar at worst. At that rate $150 is up to about seven five-hour windows; it would be fewer if the operator's session caused most of those 2 points.
+- **Either way, a full default event very likely can't finish inside one five-hour window, and overage is disabled.** Options: a scaled event (for example 8 builders, a 20-minute build and 2 tournaments, about a tenth of the builder-minutes), an API key, or asking the org admin about limits.
+- **To calibrate:** run the next real event with no other Claude sessions on the login and read the meter line in its REPORT.md.
 
 ## Open questions
 

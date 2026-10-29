@@ -1,0 +1,24 @@
+# Milestone 5: the real smoke test. 2 real builders, a 4-minute build, 1 tournament.
+#   python -m arena.referee new configs/m5-smoke.yaml
+#   python -m arena.referee isolation m5-smoke      # the isolation proof (one scripted run)
+#   python -m arena.referee run m5-smoke            # real builders: uses your Claude plan or API key
+event:
+  name: m5-smoke
+  seed: 5
+builders:
+  count: 2
+  models:
+    sonnet: 2
+  archetypes: none
+  max_budget_usd_per_builder: 5
+auth:
+  mode: subscription
+schedule:
+  build_minutes: 4
+  tournaments: 1
+  patch_minutes: 0
+variant: nlhe
+table:
+  points: standard
+  blinds:
+    schedule: doubling

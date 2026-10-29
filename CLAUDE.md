@@ -39,7 +39,8 @@ Keep this list current as commands are added.
 - `python -m arena.bench [--workers 1,4,9]` and `python -m arena.bench --tournament [--workers 2,4,9]`
 - `python -m arena.tournament --zoo 40 --iterations 400 [--bot NAME=DIR] [--log DIR] [--json FILE]` (one tournament with the real runner)
 - `python -m arena.viz --demo | --dir LOGDIR | --event ID` (live table viewer in the browser; the Browser pane's "table-viz" launch config runs the demo)
-- `python -m arena.referee new configs/event.yaml`
+- `python -m arena.referee new configs/event.yaml [--name ID]` (also builds the builders' own Python in `~/nolimit-workspaces/.python` and `.venv` on first use)
+- `python -m arena.referee isolation <event-id>` (scripted Haiku run with real builder settings; spends a fraction of a cent)
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X]`
 - `python -m arena.referee status|report|debrief|cleanup <event-id>`
 
