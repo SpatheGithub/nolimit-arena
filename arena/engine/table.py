@@ -41,6 +41,7 @@ class Table:
             raise ValueError("empty blind schedule")
         self.spec = spec
         self.n_seats = n_seats
+        self.starting_stack = starting_stack
         self.stacks = list(stacks) if stacks is not None else [starting_stack] * n_seats
         if len(self.stacks) != n_seats:
             raise ValueError("one stack per seat")

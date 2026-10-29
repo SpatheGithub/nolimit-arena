@@ -1,0 +1,5 @@
+import this_module_does_not_exist  # noqa: F401
+
+
+class Agent:
+    pass

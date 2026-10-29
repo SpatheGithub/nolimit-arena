@@ -71,3 +71,4 @@ These are the rules the arena's dealer follows at every table. Today's variant (
 ## When your bot fails
 
 - **Substitution.** If `act()` uses more than its time limit, raises an exception or returns an illegal action, the dealer folds for you, or checks when checking is free. Every substitution is counted in your results.
+- **How time is measured.** The limit is CPU time for the call (thread CPU), normalized to the machine's fastest cores, so landing on a slower core doesn't count against you. A call still running after 50 ms of wall time is interrupted. Aim well under the limit: the timings `kit/check_bot.py` shows on a busy machine are noisier than the referee's.

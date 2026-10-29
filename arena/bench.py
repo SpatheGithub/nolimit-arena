@@ -1,12 +1,16 @@
-"""Engine and evaluator throughput.
+"""Engine, evaluator and tournament throughput.
 
     python -m arena.bench [--seconds 3] [--workers 1,4,9]
+    python -m arena.bench --tournament [--entries 40] [--iterations 400] [--workers 2,4,9]
 
 Engine numbers are hands per second on one core while playing full 8-seat
 sit-and-go tables with trivial policies that work straight off
 ``Hand.legal()``, so they exclude bot time. With --workers, the random-policy
 table loop also runs in that many processes at once, and per-process
 throughput is reported.
+
+--tournament runs whole tournaments of house-bot entries (the zoo, cycled)
+through the real runner (timing, watchdog, hand logs) at each worker count.
 """
 
 from __future__ import annotations
@@ -99,11 +103,35 @@ def _worker(args):
     return bench_tables("random", seconds, seed)[0]
 
 
+def bench_tournament(entries: int, iterations: int, workers: list[int]) -> None:
+    import tempfile
+
+    from .tournament.play import Settings
+    from .tournament.tournament import default_workers, run_tournament, zoo_entries
+
+    field = zoo_entries(entries)
+    print(f"tournament {entries} house-bot entries x {iterations} iterations, NLHE, hand logs on")
+    for w in workers or [default_workers()]:
+        with tempfile.TemporaryDirectory() as log_dir:
+            res = run_tournament(field, Settings(spec=NLHE), iterations, seed=1, workers=w, log_dir=log_dir)
+        m = res["meta"]
+        subs = sum(r["timeouts"] + r["errors"] + r["illegal"] + r["hangs"] for r in res["entries"])
+        print(f"  {w:>2} workers  {m['elapsed_s']:6.1f}s (+{m['startup_s']:.1f}s start)  "
+              f"{m['tables']:,} tables  {m['hands']:,} hands  {m['hands'] / m['elapsed_s']:,.0f} hands/s  "
+              f"substitutions {subs}")
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seconds", type=float, default=3.0)
     ap.add_argument("--workers", default="", help="comma-separated process counts, e.g. 1,4,9")
+    ap.add_argument("--tournament", action="store_true")
+    ap.add_argument("--entries", type=int, default=40)
+    ap.add_argument("--iterations", type=int, default=400)
     a = ap.parse_args(argv)
+    if a.tournament:
+        bench_tournament(a.entries, a.iterations, [int(x) for x in a.workers.split(",") if x])
+        return
     t0 = time.perf_counter()
     get_evaluator(NLHE)
     build = time.perf_counter() - t0
