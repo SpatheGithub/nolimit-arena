@@ -79,7 +79,8 @@ def pool() -> Iterator[Pool]:
         yield p
 
 
-def _deal(rng: random.Random, spec: VariantSpec, players: int) -> tuple[list[list[int]], list[int]]:
+def _deal(rng: random.Random, spec: VariantSpec,
+          players: int) -> tuple[list[list[int]], list[int]]:
     h, b = spec.hole_count, spec.board_count
     cards = rng.sample(spec.deck(), b + h * players)
     return [cards[b + h * i:b + h * (i + 1)] for i in range(players)], cards[:b]
@@ -95,7 +96,7 @@ def _gather(pool: Pool, fn: Callable[[Any], tuple[int, list]], jobs: list) -> tu
 
 # -- pool workers ------------------------------------------------------------
 
-def _random_deals(job: tuple[str, int, int, int]) -> tuple[int, list]:
+def _random_deals(job: tuple[str, int | str, int, int]) -> tuple[int, list]:
     """Random deals: fast evaluate and showdown against the reference."""
     name, seed, deals, players = job
     spec = SPECS[name]
@@ -159,7 +160,8 @@ def _pokerkit_pairs(job: tuple[str, int, int]) -> tuple[int, list]:
         theirs = [hand_type.from_game("".join(CARD_STR[c] for c in h), on_board) for h in holes]
         for i, j in combinations(range(8), 2):
             pairs += 1
-            if (ours[i] > ours[j]) - (ours[i] < ours[j]) != (theirs[i] > theirs[j]) - (theirs[i] < theirs[j]):
+            order = (ours[i] > ours[j]) - (ours[i] < ours[j])
+            if order != (theirs[i] > theirs[j]) - (theirs[i] < theirs[j]):
                 bad.append((holes[i], holes[j], board, ours[i], ours[j], theirs[i], theirs[j]))
     return pairs, bad[:5]
 
@@ -207,7 +209,7 @@ def test_random_seven_card_holdem(pool: Pool):
 def test_variant_random_deals(pool: Pool, name: str):
     spec = SPECS[name]
     players = min(3, (spec.deck_size - spec.board_count) // spec.hole_count)
-    jobs = [(name, 1_000 * i + len(name), 1_000, players) for i in range(8)]
+    jobs = [(name, f"{name}/{i}", 1_000, players) for i in range(8)]
     hands, bad = _gather(pool, _random_deals, jobs)
     assert hands == 8_000 * players
     assert not bad
@@ -263,13 +265,17 @@ def test_partial_boards_match_reference(name: str):
             assert got == want, (hole, board[:n])
 
 
-def test_inputs_are_not_mutated():
-    ev = get_evaluator(PLO)
-    holes = [[51, 47, 2, 9], [50, 46, 13, 30]]
-    board = [48, 44, 40, 3, 7]
+@pytest.mark.parametrize("name", ["nlhe", "plo", "at_least_one"])
+def test_inputs_are_not_mutated(name: str):
+    spec = SPECS[name]
+    ev = get_evaluator(spec)
+    holes, board = _deal(random.Random(5), spec, 3)
+    before = [list(h) for h in holes], list(board)
     ev.showdown(holes, board)
-    ev.evaluate(tuple(holes[0]), tuple(board))
-    assert holes == [[51, 47, 2, 9], [50, 46, 13, 30]] and board == [48, 44, 40, 3, 7]
+    for h in holes:
+        ev.evaluate(h, board)
+        ev.evaluate(tuple(h), tuple(board))
+    assert ([list(h) for h in holes], list(board)) == before
 
 
 # -- pokerkit ------------------------------------------------------------------
@@ -285,21 +291,40 @@ def test_order_matches_pokerkit(pool: Pool, name: str):
 
 # -- properties ----------------------------------------------------------------
 
+def _moved(cards: list[int], relabel: dict[int, int], rng: random.Random) -> list[int]:
+    out = [c & ~3 | relabel[c & 3] for c in cards]
+    rng.shuffle(out)
+    return out
+
+
 @pytest.mark.parametrize("name", sorted(SPECS))
 def test_suit_relabelling_and_card_order(name: str):
     spec = SPECS[name]
     ev = get_evaluator(spec)
     suits = sorted({c & 3 for c in spec.deck()})
-    players = min(4, (spec.deck_size - spec.board_count) // spec.hole_count)
     rng = random.Random(11)
-    for _ in range(500):
-        holes, board = _deal(rng, spec, players)
-        values = ev.showdown(holes, board)
+    for _ in range(1_000):
+        (hole,), board = _deal(rng, spec, 1)
         relabel = dict(zip(suits, rng.sample(suits, len(suits))))
+        assert ev.evaluate(_moved(hole, relabel, rng), _moved(board, relabel, rng)) \
+            == ev.evaluate(hole, board)
 
-        def moved(cs: list[int]) -> list[int]:
-            out = [c & ~3 | relabel[c & 3] for c in cs]
-            rng.shuffle(out)
-            return out
-        assert [ev.evaluate(moved(h), moved(board)) for h in holes] == values
-        assert values == [ev.evaluate(h, board) for h in holes]
+
+@pytest.mark.parametrize("name", sorted(SPECS))
+def test_showdown_matches_evaluate(name: str):
+    spec = SPECS[name]
+    ev = get_evaluator(spec)
+    most = min(8, (spec.deck_size - spec.board_count) // spec.hole_count)
+    rng = random.Random(13)
+    for i in range(1_000):
+        holes, board = _deal(rng, spec, 1 + i % most)
+        board = board[:max(0, len(board) - i % 3)]
+        try:
+            want: list[int] | str = [ev.evaluate(h, board) for h in holes]
+        except ValueError:
+            want = "no hand"
+        try:
+            got: list[int] | str = ev.showdown(holes, board)
+        except ValueError:
+            got = "no hand"
+        assert got == want, (holes, board)

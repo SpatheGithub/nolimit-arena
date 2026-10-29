@@ -27,9 +27,10 @@ Card-use rules, decided per (hole, board) size from ``spec.hole_splits()``:
 - any five of at most seven cards: one lookup, in code generated for the
   sizes; ``showdown`` sums the board once;
 - any five of more cards: the best seven-card subset (or every five);
-- exactly k hole cards (Omaha): per board rank multiset a cached row maps
-  each hole k-subset to its best unsuited value; the suited part is added
-  only when the board has 5 - k cards of a suit (other orders: enumeration);
+- exactly k hole cards (Omaha): the best unsuited value of each hole
+  k-subset, cached for k <= 2 in a row per board rank multiset; the suited
+  part only when the board has 5 - k cards of a suit (other orders:
+  enumeration);
 - at most k: "any five" over each k-subset of the hole;
 - at least k: "any five", unless fewer hole cards reach the same value;
 - otherwise: every allowed five-card subset.
@@ -51,6 +52,8 @@ from .spec import VariantSpec
 
 Eval = Callable[[Sequence[int], Sequence[int]], int]
 Showdown = Callable[[Sequence[Sequence[int]], Sequence[int]], list[int]]
+Prepare = Callable[[Sequence[int]], Any]
+Value = Callable[[Any, Sequence[int]], int]
 
 RANK_KEYS = (0, 1, 5, 22, 98, 453, 2031, 8698, 22854, 83661, 262349, 636345, 1479181)
 COUNT = 1 << 23
@@ -196,7 +199,7 @@ def _generate_any(ev: FastEvaluator, n_hole: int, n_board: int) -> tuple[Eval, S
         flush_return=_indent(flush_return, 8), flush_append=_indent(flush_append, 16),
     )
     env = {"K": KEY, "T": ev.tables.rank, "FS": ev.tables.suited, "SUITED_BITS": SUITED_BITS,
-           "fives": ev.fives, "other": ev._dispatch}
+           "fives": ev._fives, "other": ev._dispatch}
     exec(compile(source, f"<fasteval any {n_hole}+{n_board}>", "exec"), env)
     return env["evaluate"], env["showdown"]
 
@@ -225,7 +228,7 @@ class FastEvaluator:
     def category(self, value: int) -> str:
         return self.order[value >> 20]
 
-    def any5(self, cards: Sequence[int]) -> int:
+    def _any(self, cards: Sequence[int]) -> int:
         """Best five of any of ``cards`` (at least five)."""
         t = self.tables
         n = len(cards)
@@ -235,14 +238,14 @@ class FastEvaluator:
                 s += KEY[c]
             if s & FLUSH:
                 if not t.suited_above:
-                    return self.fives(cards)
+                    return self._fives(cards)
                 bits = SUITED_BITS[s & FLUSH]
                 f = t.suited[sum([bits[c] for c in cards])]
                 r = t.rank[s >> 16]
                 return f if f > r else r
             return t.rank[s >> 16]
         if not t.suited_above or n >= 12:
-            return self.fives(cards)
+            return self._fives(cards)
         keys = [KEY[c] for c in cards]
         total = sum(keys, START)
         best = max([t.rank[(total - sum(d)) >> 16] for d in combinations(keys, n - 7)])
@@ -251,11 +254,11 @@ class FastEvaluator:
             masks[c & 3] |= RANK_BIT[c]
         return max(best, *[t.suited[m] for m in masks])
 
-    def fives(self, cards: Sequence[int]) -> int:
+    def _fives(self, cards: Sequence[int]) -> int:
         """Best five of ``cards`` by enumeration, exact for every order."""
-        return self.splits([], cards, (0,))
+        return self._splits([], cards, (0,))
 
-    def splits(self, hole: Sequence[int], board: Sequence[int], ks: Sequence[int]) -> int:
+    def _splits(self, hole: Sequence[int], board: Sequence[int], ks: Sequence[int]) -> int:
         """Best five using k hole cards and 5 - k board cards, k in ``ks``."""
         rank, suited = self.tables.rank, self.tables.suited
         best = -1
@@ -293,7 +296,8 @@ class FastEvaluator:
                 return _generate_any(self, n_hole, n_board)
             prepare, value = list, self._value_any
         elif ks[0] == ks[-1] and self.tables.suited_above:
-            prepare, value = _Exactly(self.tables, ks[0]).pair()
+            exact = _Exactly(self.tables, ks[0], sorted(RANKS.index(r) for r in self.spec.ranks))
+            prepare, value = exact.prepare, exact.value
         elif ks[0] == lo:
             prepare, value = list, self._value_at_most(ks[-1])
         elif ks[-1] == hi:
@@ -303,36 +307,36 @@ class FastEvaluator:
         return self._sized(n_hole, n_board, prepare, value)
 
     def _value_any(self, board: list[int], hole: Sequence[int]) -> int:
-        return self.any5([*hole, *board])
+        return self._any([*hole, *board])
 
-    def _value_at_most(self, k: int) -> Callable[[list[int], Sequence[int]], int]:
+    def _value_at_most(self, k: int) -> Value:
         def value(board: list[int], hole: Sequence[int]) -> int:
-            return max([self.any5([*p, *board]) for p in combinations(hole, k)])
+            return max([self._any([*p, *board]) for p in combinations(hole, k)])
         return value
 
-    def _prepare_at_least(self, k: int) -> Callable[[Sequence[int]], tuple[list[int], int]]:
+    def _prepare_at_least(self, k: int) -> Prepare:
         def prepare(board: Sequence[int]) -> tuple[list[int], int]:
-            return list(board), (self.any5(board) if k == 1 else -1)
+            return list(board), (self._any(board) if k == 1 else -1)
         return prepare
 
-    def _value_at_least(self, ks: list[int]) -> Callable[[tuple[list[int], int], Sequence[int]], int]:
+    def _value_at_least(self, ks: list[int]) -> Value:
         fewer = self._value_at_most(ks[0] - 1)
 
         def value(ctx: tuple[list[int], int], hole: Sequence[int]) -> int:
             board, board_only = ctx
-            v = self.any5([*hole, *board])
+            v = self._any([*hole, *board])
             if v > (board_only if ks[0] == 1 else fewer(board, hole)):
                 return v
-            return self.splits(hole, board, ks)
+            return self._splits(hole, board, ks)
         return value
 
-    def _value_splits(self, ks: list[int]) -> Callable[[Sequence[int], Sequence[int]], int]:
+    def _value_splits(self, ks: list[int]) -> Value:
         def value(board: Sequence[int], hole: Sequence[int]) -> int:
-            return self.splits(hole, board, ks)
+            return self._splits(hole, board, ks)
         return value
 
-    def _sized(self, n_hole: int, n_board: int, prepare: Callable[[Sequence[int]], Any],
-               value: Callable[[Any, Sequence[int]], int]) -> tuple[Eval, Showdown]:
+    def _sized(self, n_hole: int, n_board: int, prepare: Prepare,
+               value: Value) -> tuple[Eval, Showdown]:
         """evaluate/showdown from a per-board ``prepare`` and a per-hole
         ``value``, for these sizes only; other sizes go to the dispatch."""
         other = self._dispatch
@@ -350,34 +354,48 @@ class FastEvaluator:
         return evaluate, showdown
 
 
-_Board = tuple[dict[int, int], Sequence[int], list[tuple[tuple[int, ...], list[int]]]]
+_Board = tuple[list[Any] | None, Sequence[int], list[int], list[tuple[tuple[int, ...], list[int]]]]
 
 
 class _Exactly:
     """Exactly k hole cards and 5 - k board cards, for orders where a suited
     five beats the same ranks unsuited.
 
-    The unsuited part comes from a row per board rank multiset, filled on
-    demand: hole k-subset rank key -> best unsuited five. The suited part is
-    only looked at for suits with 5 - k board cards."""
+    The unsuited part is the best ``rank`` entry over hole k-subsets and board
+    (5 - k)-subsets. For k <= 2 it is cached: one row per board rank multiset,
+    one slot per rank multiset of k deck ranks (91 for Omaha), filled on
+    demand. The suited part is only looked at for suits with 5 - k board cards."""
 
-    def __init__(self, t: Tables, k: int):
+    def __init__(self, t: Tables, k: int, ranks: Sequence[int]):
         self.t = t
         self.k = k
         self.reach = (3 + k) * 0x1111
-        self.rows: dict[Any, dict[int, int]] = {}
-
-    def pair(self) -> tuple[Callable[[Sequence[int]], _Board], Callable[[_Board, Sequence[int]], int]]:
-        return self.prepare, self.value
+        self.rows: dict[Any, list[Any]] = {}
+        self.cached = k <= 2
+        subsets = combinations_with_replacement(ranks, k) if self.cached else ()
+        index = {m: i for i, m in enumerate(subsets)}
+        self.width = len(index)
+        self.slots_of: Callable[[Sequence[int]], list[int]] = _one_slot
+        if k == 1:
+            single = [index.get((c >> 2,)) for c in range(52)]
+            self.slots_of = lambda hole: [single[c] for c in hole]
+        elif k == 2:
+            pair = [[index.get((min(x, y) >> 2, max(x, y) >> 2)) for y in range(52)]
+                    for x in range(52)]
+            self.slots_of = lambda hole: [pair[x][y] for x, y in combinations(hole, 2)]
 
     def prepare(self, board: Sequence[int]) -> _Board:
         need = 5 - self.k
         s = sum([KEY[c] for c in board])
         small = len(board) <= 7
-        bk = s >> 16 if small else tuple(sorted(c >> 2 for c in board))
-        row = self.rows.get(bk)
-        if row is None:
-            row = self.rows[bk] = {}
+        row, qks = None, []
+        if not self.cached:
+            qks = list(map(sum, combinations([RANK_KEY[c] for c in board], need)))
+        else:
+            bk = s >> 16 if small else tuple(sorted(c >> 2 for c in board))
+            row = self.rows.get(bk)
+            if row is None:
+                row = self.rows[bk] = [None] * self.width
         flags = ((s & 0xFFFF) + self.reach) & FLUSH if small else FLUSH
         flush = []
         if flags:
@@ -386,20 +404,21 @@ class _Exactly:
                     mine = [b for b in map(bits.__getitem__, board) if b]
                     if len(mine) >= need:
                         flush.append((bits, list(map(sum, combinations(mine, need)))))
-        return row, board, flush
+        return row, board, qks, flush
 
     def value(self, ctx: _Board, hole: Sequence[int]) -> int:
-        row, board, flush = ctx
+        row, board, qks, flush = ctx
         k = self.k
-        pks = list(map(sum, combinations([RANK_KEY[c] for c in hole], k)))
-        vals = list(map(row.get, pks))
-        if None in vals:
+        if row is None:
             rank = self.t.rank
-            qks = list(map(sum, combinations([RANK_KEY[c] for c in board], 5 - k)))
-            for i, pk in enumerate(pks):
-                if vals[i] is None:
-                    vals[i] = row[pk] = max([rank[pk + q] for q in qks])
-        best = max(vals)
+            pks = map(sum, combinations([RANK_KEY[c] for c in hole], k))
+            best = max([rank[pk + q] for pk in pks for q in qks])
+        else:
+            slots = self.slots_of(hole)
+            vals = [row[i] for i in slots]
+            if None in vals:
+                self._fill(row, board, hole, slots, vals)
+            best = max(vals)
         for bits, board_masks in flush:
             mine = [b for b in map(bits.__getitem__, hole) if b]
             if len(mine) >= k:
@@ -409,6 +428,20 @@ class _Exactly:
                         if suited[pm | qm] > best:
                             best = suited[pm | qm]
         return best
+
+    def _fill(self, row: list[Any], board: Sequence[int], hole: Sequence[int],
+              slots: list[int], vals: list[Any]) -> None:
+        """Compute the missing ``vals`` (in combinations(hole, k) order) into ``row``."""
+        rank, k = self.t.rank, self.k
+        qks = list(map(sum, combinations([RANK_KEY[c] for c in board], 5 - k)))
+        for i, p in enumerate(combinations(hole, k)):
+            if vals[i] is None:
+                pk = sum([RANK_KEY[c] for c in p])
+                vals[i] = row[slots[i]] = max([rank[pk + q] for q in qks])
+
+
+def _one_slot(hole: Sequence[int]) -> list[int]:
+    return [0]
 
 
 def _identity(board: Sequence[int]) -> Sequence[int]:
