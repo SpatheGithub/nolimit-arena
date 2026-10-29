@@ -11,6 +11,7 @@ from arena.engine.spec import NLHE
 from arena.tournament.play import Settings
 from arena.tournament.pool import Entry
 from arena.tournament.tournament import run_tournament
+from arena.viz.results import event_results
 from arena.viz.server import Handler, Source, latest_event, serve
 from arena.viz.status import event_status
 
@@ -94,3 +95,37 @@ def test_event_mode_follows_the_latest_tournament(tmp_path):
         (d / "hands.meta.json").write_text("{}")
     assert Source(event_dir=str(ev)).current()[1] == "T2"
     assert Source(event_dir=str(tmp_path / "none")).current()[0] is None
+
+
+def test_results_rank_weighted_scores_and_top_five_chances(tmp_path):
+    ev = tmp_path / "events" / "ev2"
+    teams = [f"b0{i}" for i in range(1, 8)]
+    (ev / "results").mkdir(parents=True)
+    (ev / "card.json").write_text(json.dumps({"tournaments": 3}))
+    (ev / "state.json").write_text(json.dumps({"phase": "tournament:3"}))
+    (ev / "teams.json").write_text(json.dumps([{"team": t, "model": "opus", "archetype": None} for t in teams]))
+
+    def write(k, means):  # b07 never has an accepted bot
+        (ev / "results" / f"T{k}").mkdir()
+        entries = [{"name": t, "mean": m, "se": 1.0, "lo": m - 2, "hi": m + 2, "rank": None, "tables": 100,
+                    "places": [m / 2, 100 - m / 2, 0, 0, 0, 0, 0, 0]} for t, m in zip(teams, means)]
+        (ev / "results" / f"T{k}" / "summary.json").write_text(json.dumps({"meta": {}, "entries": entries}))
+
+    write(1, [50, 40, 35, 30, 25, 20])
+    write(2, [30, 45, 35, 30, 25, 20])
+    r = event_results(str(ev))
+    rows = {x["team"]: x for x in r["rows"]}
+    assert r["done"] == [1, 2] and r["playing"] == 3 and r["absent"] == ["b07"] and r["cutoff"] == 5
+    assert [x["team"] for x in r["rows"]] == ["b02", "b01", "b03", "b04", "b05", "b06"]  # 1·T1 + 2·T2
+    assert rows["b02"]["weighted"] == 130 and rows["b01"]["history"] == [1, 2] and rows["b02"]["history"] == [2, 1]
+    assert abs(sum(x["p_top"] for x in r["rows"]) - 5) < 0.01 and rows["b02"]["p_first"] > 0.99
+    assert rows["b06"]["p_top"] < 0.01 and rows["b01"]["won"] == 0.2 and rows["b01"]["per"]["2"]["mean"] == 30
+    write(3, [0, 0, 0, 0, 0, 100])  # a new summary invalidates the cache
+    assert event_results(str(ev))["rows"][0]["team"] == "b06"
+    server, url = serve(Source(event_dir=str(ev)), port=18767)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        got = json.loads(urllib.request.urlopen(url + "api/results").read())
+        assert got["done"] == [1, 2, 3] and got["rows"][0]["team"] == "b06"
+    finally:
+        server.shutdown()

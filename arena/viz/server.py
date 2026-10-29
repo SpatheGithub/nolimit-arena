@@ -14,6 +14,7 @@ arena/tournament/handlog.py:
     /api/tables?since=N        index entries after the first N (in finishing order)
     /api/table?task=T          one table's hands, with names per seat
     /api/event                 event mode: phase, clock, builders, leaderboard (arena/viz/status.py)
+    /api/results               event mode: standings, table wins, chances of the top 5 (arena/viz/results.py)
 Standard library only; binds to 127.0.0.1.
 """
 
@@ -31,6 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from ..tournament.handlog import read_meta, read_table
+from .results import event_results
 from .status import event_status
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -122,6 +124,10 @@ class Handler(BaseHTTPRequestHandler):
             if ev is None:
                 return self._json({"error": "no event"}, 404)
             return self._json(event_status(ev))
+        if url.path == "/api/results":
+            if ev is None:
+                return self._json({"error": "no event"}, 404)
+            return self._json(event_results(ev))
         d, label = self.source.current()
         if url.path == "/api/state":
             # "source" changes when a new tournament or event starts, so the page can start over.

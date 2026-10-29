@@ -38,7 +38,7 @@ Keep this list current as commands are added.
 - `python -m arena.engine.xval 100000` (engine vs pokerkit; prints counts of the documented rule differences)
 - `python -m arena.bench [--workers 1,4,9]` and `python -m arena.bench --tournament [--workers 2,4,9]`
 - `python -m arena.tournament --zoo 40 --iterations 400 [--bot NAME=DIR] [--log DIR] [--json FILE]` (one tournament with the real runner)
-- `python -m arena.viz --demo | --dir LOGDIR | --event ID|latest` (live viewer: an event's builders during windows, then its tournament tables; the Browser pane's "event-viz" launch config follows the latest event, "table-viz" runs the demo)
+- `python -m arena.viz --demo | --dir LOGDIR | --event ID|latest` (live viewer: an event's builders during windows, its tables while a tournament plays, and its standings and winners after each one; the Browser pane's "event-viz" launch config follows the latest event, "table-viz" runs the demo)
 - `python -m arena.referee new configs/event.yaml [--name ID]` (also builds the builders' own Python in `~/nolimit-workspaces/.python` and `.venv` on first use; `configs/full-opus.yaml` is the full-strength field)
 - `python -m arena.referee isolation <event-id>` (scripted Haiku run with real builder settings; spends a fraction of a cent)
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X] [--no-viz]` (serves the live viewer on 127.0.0.1:8766; waits out plan usage limits and resumes)

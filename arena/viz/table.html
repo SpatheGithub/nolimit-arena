@@ -103,6 +103,39 @@ aside h2 { margin: 0; padding: 10px 14px; font-size: 12px; letter-spacing: .12em
 .board-t td { text-align: right; padding: 4px 12px; border-bottom: 1px solid var(--line); }
 .board-t th:nth-child(2), .board-t td:nth-child(2) { text-align: left; }
 .sub-h { margin: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+#rview { padding: 16px 18px 28px; display: grid; gap: 18px; align-content: start; min-height: calc(100vh - 46px); }
+.r-wait { margin: 0; color: var(--dim); }
+.podium { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.pod { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 3px; min-width: 0; }
+.pod .pl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.pod .nm { font-size: 18px; font-weight: 600; letter-spacing: .06em; }
+.pod .sc { font-size: 15px; font-variant-numeric: tabular-nums; }
+.pod .mt { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pod.first { border-color: var(--gold); } .pod.first .pl, .pod.first .nm { color: var(--gold); }
+.r-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.r-fig { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.r-fig svg { width: 100%; height: auto; display: block; overflow: visible; }
+.r-fig svg text { fill: var(--dim); font: 11px var(--mono); }
+.r-fig svg text.lead { fill: var(--gold); }
+.r-fig svg g.ln { transition: opacity .15s; }
+.r-fig svg:hover g.ln { opacity: .3; } .r-fig svg g.ln:hover { opacity: 1; }
+.r-cap { margin: 0; color: var(--faint); font-size: 11.5px; }
+.r-scroll { overflow-x: auto; }
+.r-table th, .r-table td { white-space: nowrap; }
+.r-table tr.adv td:nth-child(2) { color: var(--win); }
+.r-table tr.lead td:nth-child(2) { color: var(--gold); }
+.r-table tr.cut td { border-bottom: 1px dashed var(--win); }
+.r-table td.md { text-align: left; color: var(--faint); white-space: nowrap; }
+.r-table td.na { color: var(--faint); }
+.r-table .pbar { display: inline-block; width: 46px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.r-table .pbar i { display: block; height: 100%; background: var(--win); }
+.pl-grid { display: grid; gap: 4px; }
+.prow { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: center; font-size: 12px; }
+.prow .seg { display: flex; gap: 2px; height: 12px; }
+.prow .seg i { display: block; height: 100%; background: var(--win); min-width: 0; }
+.prow .seg i:first-child { border-radius: 3px 0 0 3px; } .prow .seg i:last-child { border-radius: 0 3px 3px 0; }
+.r-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--dim); font-size: 11px; }
+.r-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--win); margin-right: 4px; vertical-align: -1px; }
 </style>
 </head>
 <body>
@@ -114,7 +147,7 @@ aside h2 { margin: 0; padding: 10px 14px; font-size: 12px; letter-spacing: .12em
   <span class="counter"><b id="c-rate">0</b> hands/s</span>
   <span id="c-status" class="counter">connecting</span>
   <span class="views" id="views" role="group" aria-label="View" hidden>
-    <button data-view="builders" aria-pressed="true">Builders</button><button data-view="tables" aria-pressed="false">Tables</button>
+    <button data-view="builders" aria-pressed="true">Builders</button><button data-view="tables" aria-pressed="false">Tables</button><button data-view="results" aria-pressed="false" id="v-results" hidden>Results</button>
   </span>
 </header>
 <section id="bview" hidden>
@@ -131,6 +164,34 @@ aside h2 { margin: 0; padding: 10px 14px; font-size: 12px; letter-spacing: .12em
     <h2 class="sub-h" id="e-board-h">Leaderboard</h2>
     <table class="board-t"><thead><tr><th>#</th><th>Team</th><th id="e-board-t">Latest</th><th>95% interval</th><th>Weighted</th></tr></thead><tbody id="e-board-rows"></tbody></table>
   </div>
+</section>
+<section id="rview" hidden>
+  <div class="evhead">
+    <span>Results <b id="r-id">—</b></span>
+    <span class="phase" id="r-phase">—</span>
+    <span id="r-sub"></span>
+  </div>
+  <p class="r-wait" id="r-empty">Standings appear here when T1 finishes.</p>
+  <div class="podium" id="r-podium"></div>
+  <div class="r-grid" id="r-charts">
+    <figure class="r-fig">
+      <h2 class="sub-h">Weighted score so far</h2>
+      <svg id="r-bars" role="img" aria-label="Weighted score per team with 95% intervals"></svg>
+      <figcaption class="r-cap">Bars: 1·T1 + 2·T2 + … so far, with 95% intervals. Gold leads, green is inside the top-5 cut (dashed).</figcaption>
+    </figure>
+    <figure class="r-fig">
+      <h2 class="sub-h">Rank after each tournament</h2>
+      <svg id="r-bump" role="img" aria-label="Each team's rank by weighted score after each tournament"></svg>
+      <figcaption class="r-cap" id="r-bump-cap">Hover a line to follow one team.</figcaption>
+    </figure>
+  </div>
+  <div class="r-scroll" id="r-standings"><table class="board-t r-table"><thead><tr id="r-head"></tr></thead><tbody id="r-rows"></tbody></table></div>
+  <figure class="r-fig" id="r-places-fig">
+    <h2 class="sub-h" id="r-places-h">Finishing places</h2>
+    <div class="pl-grid" id="r-places"></div>
+    <div class="r-legend" id="r-legend"></div>
+  </figure>
+  <p class="r-cap" id="r-note"></p>
 </section>
 <main id="tview">
   <section class="stage-wrap">
@@ -423,7 +484,7 @@ function resetTables() {
 }
 function setView(v) {
   S.view = v;
-  $("bview").hidden = v !== "builders"; $("tview").hidden = v !== "tables";
+  $("bview").hidden = v !== "builders"; $("tview").hidden = v !== "tables"; $("rview").hidden = v !== "results";
   document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
 }
 const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -482,8 +543,163 @@ function renderEvent(ev) {
   if (kind !== S.phaseKind) {  // a new phase picks the view again, overriding a manual choice
     S.phaseKind = kind; S.viewManual = false;
   }
-  if (!S.viewManual) setView(ev.paused || ["created", "build", "patch"].includes(kind) ? "builders" : "tables");
+  autoView();
   tick();
+}
+function autoView() {  // builders while they build, tables while they play, standings once a tournament is in
+  const ev = S.ev; if (!ev || S.viewManual) return;
+  const kind = ev.phase.split(":")[0], scored = S.results && S.results.done.length > 0;
+  setView(ev.paused || ["created", "build"].includes(kind) ? "builders"
+    : ["freeze", "tournament"].includes(kind) ? "tables" : scored ? "results" : "builders");
+}
+
+/* ---- Results view ---- */
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.append(e);
+  return e;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function pct(x) {
+  if (x == null) return "—";
+  return x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : Math.round(x * 100) + "%";
+}
+const ordinal = (n) => ["1st", "2nd", "3rd"][n - 1] || n + "th";  // places run 1st to 9th at most
+function niceStep(max) {
+  for (const s of [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000]) if (max / s <= 6) return s;
+  return 2000;
+}
+function teamColor(row, r) { return row.rank === 1 ? "var(--gold)" : row.rank <= r.cutoff ? "var(--win)" : "var(--faint)"; }
+function renderResults(r) {
+  S.results = r;
+  const sig = [r.key, r.phase, r.playing].join("|");
+  if (sig === S.resultsSig) return;
+  S.resultsSig = sig;
+  const last = r.done[r.done.length - 1], final = r.done.length === r.total && ["report", "done"].includes(r.phase);
+  $("r-id").textContent = r.event;
+  $("r-phase").textContent = !r.done.length ? "Waiting for T1" : final ? "Final standings" : `After T${last} of ${r.total}`;
+  $("r-sub").textContent = r.playing ? `T${r.playing} is playing now` : "";
+  const has = r.rows.length > 0;
+  $("r-empty").hidden = has;
+  for (const id of ["r-podium", "r-charts", "r-standings", "r-places-fig"]) $(id).hidden = !has;
+  $("r-note").textContent = has ? `Weighted score: 1·T1 + 2·T2 + … + ${r.total}·T${r.total}, in points per table. `
+    + "Chances of first place and of the top 5 (the regional cut) come from normal draws around each weighted score, "
+    + "using each tournament's standard error; they ignore that one team's points are another's loss."
+    + (r.absent.length ? ` No accepted bot, so not playing: ${r.absent.join(", ")}.` : "") : "";
+  if (!has) return;
+  renderPodium(r, final); renderBars(r); renderBump(r); renderStandings(r); renderPlaces(r, last);
+}
+function renderPodium(r, final) {
+  const box = $("r-podium"); box.replaceChildren();
+  r.rows.slice(0, 3).forEach((row, i) => {
+    const d = el("div", "pod" + (i === 0 ? " first" : ""));
+    d.append(el("div", "pl", ["1st", "2nd", "3rd"][i] + (i === 0 && final ? " · winner" : "")), el("div", "nm", row.team),
+             el("div", "sc", `${row.weighted.toFixed(1)} ± ${row.ci.toFixed(1)}`),
+             el("div", "mt", `P(1st) ${pct(row.p_first)} · P(top ${r.cutoff}) ${pct(row.p_top)}`),
+             el("div", "mt", `won ${pct(row.won)} of tables · avg place ${row.avg_place ?? "—"}`),
+             el("div", "mt", [row.model, row.archetype].filter(Boolean).join(" · ")));
+    box.append(d);
+  });
+}
+function renderBars(r) {
+  const svg = $("r-bars"); svg.replaceChildren();
+  const rows = r.rows, n = rows.length, rh = n > 16 ? 14 : 20, top = 4, W = 560, L = 72, R = 44, H = top + n * rh + 20;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const max = Math.max(...rows.map((x) => x.weighted + x.ci), 1), X = (v) => L + Math.max(0, v) / max * (W - L - R);
+  for (let v = 0, s = niceStep(max); v <= max; v += s) {
+    svgEl("line", { x1: X(v), x2: X(v), y1: top, y2: top + n * rh, stroke: "var(--line)" }, svg);
+    svgEl("text", { x: X(v), y: H - 4, "text-anchor": "middle" }, svg, fmt(v));
+  }
+  rows.forEach((row, i) => {
+    const y = top + i * rh, mid = y + rh / 2, g = svgEl("g", {}, svg);
+    svgEl("title", {}, g, `${row.team}: ${row.weighted.toFixed(1)} ± ${row.ci.toFixed(1)} · P(top ${r.cutoff}) ${pct(row.p_top)} · P(1st) ${pct(row.p_first)}`);
+    svgEl("rect", { x: 0, y, width: W, height: rh, fill: "transparent" }, g);
+    svgEl("text", { x: L - 8, y: mid + 4, "text-anchor": "end", class: row.rank === 1 ? "lead" : "" }, g, row.team);
+    svgEl("rect", { x: L, y: mid - 4, width: Math.max(1, X(row.weighted) - L), height: 8, rx: 2, fill: teamColor(row, r) }, g);
+    svgEl("line", { x1: X(row.weighted - row.ci), x2: X(row.weighted + row.ci), y1: mid, y2: mid, stroke: "var(--ink)", "stroke-width": 1.25, opacity: 0.6 }, g);
+    if (n <= 12 || row.rank <= r.cutoff) svgEl("text", { x: X(row.weighted + row.ci) + 6, y: mid + 4 }, g, row.weighted.toFixed(0));
+    if (row.rank === r.cutoff && n > r.cutoff) {
+      svgEl("line", { x1: 0, x2: W - R, y1: y + rh, y2: y + rh, stroke: "var(--win)", "stroke-dasharray": "4 3" }, svg);
+      svgEl("text", { x: 0, y: y + rh - 3, fill: "var(--win)" }, svg, `top ${r.cutoff}`);
+    }
+  });
+}
+function renderBump(r) {
+  const svg = $("r-bump"); svg.replaceChildren();
+  const ks = r.done, n = r.rows.length;
+  if (ks.length < 2) {
+    svg.setAttribute("viewBox", "0 0 560 24");
+    svgEl("text", { x: 0, y: 16 }, svg, "Rank movement appears once T2 has finished.");
+    $("r-bump-cap").textContent = ""; return;
+  }
+  $("r-bump-cap").textContent = "Hover a line to follow one team.";
+  const W = 560, L = 30, R = 64, top = 8, rowH = n > 16 ? 9 : 22, H = top + (n - 1) * rowH + 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const X = (j) => L + j / (ks.length - 1) * (W - L - R), Y = (rk) => top + (rk - 1) * rowH;
+  ks.forEach((k, j) => svgEl("text", { x: X(j), y: H - 4, "text-anchor": "middle" }, svg, "T" + k));
+  for (const rk of [...new Set([1, Math.min(r.cutoff, n), n])]) svgEl("text", { x: L - 10, y: Y(rk) + 4, "text-anchor": "end" }, svg, rk);
+  if (n > r.cutoff) {
+    const yc = (Y(r.cutoff) + Y(r.cutoff + 1)) / 2;
+    svgEl("line", { x1: L, x2: W - R, y1: yc, y2: yc, stroke: "var(--win)", "stroke-dasharray": "4 3", opacity: 0.6 }, svg);
+  }
+  const order = [...r.rows].sort((a, b) => b.rank - a.rank);  // leaders drawn last, on top
+  for (const row of order) {
+    const g = svgEl("g", { class: "ln" }, svg), color = teamColor(row, r), strong = row.rank <= r.cutoff;
+    svgEl("title", {}, g, `${row.team}: ${row.history.map((x) => x ?? "–").join(" → ")}`);
+    let path = "", pen = false;
+    row.history.forEach((rk, j) => {
+      if (rk == null) { pen = false; return; }
+      path += (pen ? " L" : " M") + X(j) + " " + Y(rk); pen = true;
+    });
+    svgEl("path", { d: path.trim(), fill: "none", stroke: color, "stroke-width": strong ? 2 : 1.25 }, g);
+    svgEl("path", { d: path.trim(), fill: "none", stroke: "transparent", "stroke-width": 10 }, g);  // hover target
+    row.history.forEach((rk, j) => { if (rk != null) svgEl("circle", { cx: X(j), cy: Y(rk), r: strong ? 3.5 : 2.5, fill: color }, g); });
+    const lastRank = row.history[row.history.length - 1];
+    if (lastRank != null && (n <= 12 || strong)) svgEl("text", { x: X(ks.length - 1) + 8, y: Y(lastRank) + 4, class: row.rank === 1 ? "lead" : "" }, g, row.team);
+  }
+}
+function renderStandings(r) {
+  const head = $("r-head"); head.replaceChildren();
+  const ks = Array.from({ length: r.total }, (_, i) => i + 1);
+  for (const h of ["#", "Team", "Model · start", "Weighted", "± 95%", `P(top ${r.cutoff})`, "P(1st)", ...ks.map((k) => "T" + k), "Won", "Avg place"]) head.append(el("th", "", h));
+  const body = $("r-rows"); body.replaceChildren();
+  for (const row of r.rows) {
+    const tr = el("tr", [row.rank <= r.cutoff ? "adv" : "", row.rank === 1 ? "lead" : "", row.rank === r.cutoff && r.rows.length > r.cutoff ? "cut" : ""].join(" ").trim());
+    tr.append(el("td", "", row.rank), el("td", "", row.team), el("td", "md", [row.model, row.archetype].filter(Boolean).join(" · ") || "—"),
+              el("td", "", row.weighted.toFixed(1)), el("td", "", row.ci.toFixed(1)));
+    const ptd = el("td"), bar = el("span", "pbar"), fill = el("i");
+    fill.style.width = Math.round(row.p_top * 100) + "%"; bar.append(fill); ptd.append(bar, pct(row.p_top)); tr.append(ptd, el("td", "", pct(row.p_first)));
+    for (const k of ks) {
+      const p = row.per[k];
+      const td = el("td", p ? "" : "na", p ? p.mean.toFixed(1) : r.done.includes(k) ? "—" : "·");
+      if (p) td.title = `T${k}: rank ${p.rank}, 95% ${p.lo.toFixed(1)}–${p.hi.toFixed(1)} points per table, ${fmt(p.tables)} tables`;
+      tr.append(td);
+    }
+    tr.append(el("td", "", pct(row.won)), el("td", "", row.avg_place ?? "—"));
+    body.append(tr);
+  }
+}
+function renderPlaces(r, last) {
+  $("r-places-h").textContent = `Finishing places in T${last}, share of tables`;
+  const box = $("r-places"); box.replaceChildren();
+  const seats = Math.max(1, ...r.rows.map((x) => (x.per[last] ? x.per[last].places.length : 0)));
+  const shade = (j) => 1 - j * (0.85 / Math.max(seats - 1, 1));
+  for (const row of r.rows) {
+    const p = row.per[last]; if (!p) continue;
+    const line = el("div", "prow"), seg = el("div", "seg"), tot = p.places.reduce((a, b) => a + b, 0) || 1;
+    line.append(el("span", "", row.team));
+    p.places.forEach((v, j) => {
+      if (v <= 0) return;
+      const i = el("i"); i.style.flex = String(v / tot); i.style.opacity = shade(j);
+      i.title = `${row.team}: ${ordinal(j + 1)} at ${pct(v / tot)} of T${last} tables`; seg.append(i);
+    });
+    line.append(seg); box.append(line);
+  }
+  const legend = $("r-legend"); legend.replaceChildren();
+  for (let j = 0; j < seats; j++) { const s = el("span"), sw = el("i"); sw.style.opacity = shade(j); s.append(sw, ordinal(j + 1)); legend.append(s); }
 }
 document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => { S.viewManual = true; setView(b.dataset.view); });
 setInterval(tick, 1000);
@@ -498,6 +714,11 @@ async function poll() {
     if (st.event) {
       const r = await fetch("/api/event");
       if (r.ok) renderEvent(await r.json());
+      if (S.resultsOk !== false) {
+        const rr = await fetch("/api/results");
+        S.resultsOk = rr.ok; $("v-results").hidden = !rr.ok;
+        if (rr.ok) { renderResults(await rr.json()); autoView(); }
+      }
     }
     if (st.meta) {
       S.meta = st.meta;
