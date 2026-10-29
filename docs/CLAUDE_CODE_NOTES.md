@@ -405,10 +405,15 @@ From `claude --help` (2.1.300) and the model-config docs page:
 ### Estimate: the full-strength field (`configs/full-opus.yaml`)
 
 - **Builder time:** 16 builders × (60 + 5 × 20) minutes is **2,560 builder-minutes**. Without pauses that's about 3 hours 10 minutes of wall clock: 160 minutes of windows plus six tournaments of about 2 minutes.
-- **Per working minute:** measured $0.065 for Sonnet at medium. Opus doubles the output and cache-write prices, max effort thinks several times longer, and contexts grow over a 160-minute session. **Guess: $0.15 to $0.40 per working minute.**
-- **Total:** if builders work 70% of each window (clock checks keep them going), that's about **$270 to $720 at API prices, around $400.**
-- **Plan meter:** the M5 readings suggest roughly $20 to $100 of API-price usage per five-hour window on this login. They include the operator's session, so the low end is the cautious one. **So $400 would take about 4 to 20 windows, or 1 to 4 days with the waits.**
-- **Calibrate first:** run 2 Opus-max builders through a 15-minute build with no other Claude session active, and read the meter line in REPORT.md. That turns the 4-to-20 range into a measurement before committing days.
+- **Calibration, measured 2026-10-29** (`calibrate-opus`: 2 builders, Opus 5.5 at max effort, a 15-minute build, run 03:52 to 04:07 with nothing else active):
+  - Both sessions reported `claude-opus-5-5`; stderr was empty, so there was no effort-cap warning, and there were no errors or canary leaks.
+  - Each builder had 5 runs (4 clock checks), worked **88%** of the window, and got 4 submissions accepted.
+  - The two builders cost $1.32 and $1.01: **$0.088 per working builder-minute**.
+  - The plan meter went from 0% after the reset to 5% by the builders' last readings, and to 10% by the app's reading after the run. That 10% includes about two of the operator's session's steps, so **one five-hour window holds roughly $25 to $40 of API-price usage**.
+- **Per working minute over a 160-minute session:** $0.09 measured, rising toward about $0.15 as contexts grow.
+- **Total:** 2,560 builder-minutes × 88% working is about **$200 to $340, around $250.**
+- **Wall clock:** 16 builders spend about $1.3 to $2.1 per event-minute, so each window covers only 15 to 25 minutes of event before the referee waits for the reset. **The full config takes about 7 to 11 windows, 1.5 to 2.5 days.** With 8 builders it's half that.
+- **Field quality:** both calibration builders started from the house `tag` / `icm_pushfold` source in `kit/house_bots/`, which the brief invites them to copy, and tuned parameters. A field built that way is mostly copies of the arena's own baselines.
 
 ## Open questions
 
