@@ -143,7 +143,8 @@ def builder_env(repo: str, extra: dict | None = None, builder_venv: str | None =
 
 
 def claude_command(prompt: str, *, model: str, brief_file: str, settings_file: str, session_id: str,
-                   auth_mode: str, resume: bool = False, budget_usd: float | None = None) -> list[str]:
+                   auth_mode: str, resume: bool = False, budget_usd: float | None = None,
+                   effort: str | None = None) -> list[str]:
     cmd = ["claude", "-p", prompt, "--model", model, "--settings", settings_file,
            "--tools", TOOLS, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
            "--disable-slash-commands", "--permission-mode", "acceptEdits", "--permission-prompts", "none",
@@ -153,6 +154,9 @@ def claude_command(prompt: str, *, model: str, brief_file: str, settings_file: s
     cmd += ["--resume" if resume else "--session-id", session_id, "--append-system-prompt-file", brief_file]
     if budget_usd:
         cmd += ["--max-budget-usd", f"{budget_usd:g}"]
+    if effort:
+        # A launch option like the rest: settings files can't hold "max", and Opus 5.5 defaults to medium.
+        cmd += ["--effort", effort]
     return cmd
 
 
@@ -180,7 +184,7 @@ def read_stream(path: str, errors_from: int = 0) -> dict:
     on, so a resumed event isn't re-paused by the errors that paused it."""
     out = {"session_id": None, "cost_usd": 0.0, "errors": [], "result": None, "results": 0, "tools": None,
            "events": 0, "events_since": 0, "run_calls": 0, "idle_streak": 0, "interrupted": 0, "retries": 0,
-           "usage_first": None, "usage": None}
+           "usage_first": None, "usage": None, "resets_at": None, "model": None}
     try:
         with open(path, "rb") as f:
             pos = 0
@@ -201,6 +205,7 @@ def read_stream(path: str, errors_from: int = 0) -> dict:
                 if t == "system" and ev.get("subtype") == "init":
                     out["session_id"] = ev.get("session_id") or out["session_id"]
                     out["tools"] = ev.get("tools")
+                    out["model"] = ev.get("model") or out["model"]
                     out["run_calls"] = 0
                 elif t == "assistant":
                     content = (ev.get("message") or {}).get("content") or []
@@ -214,9 +219,11 @@ def read_stream(path: str, errors_from: int = 0) -> dict:
                         out["retries"] += 1
                 elif t == "rate_limit_event":
                     info = ev.get("rate_limit_info") or {}
+                    five = (info.get("unifiedWindows") or {}).get("five_hour") or {}
+                    out["resets_at"] = five.get("resetsAt") or info.get("resetsAt") or out["resets_at"]
                     if info.get("status") == "rejected":
                         error = "usage_limit"
-                    used = ((info.get("unifiedWindows") or {}).get("five_hour") or {}).get("utilization")
+                    used = five.get("utilization")
                     if used is not None:
                         out["usage_first"] = used if out["usage_first"] is None else out["usage_first"]
                         out["usage"] = used

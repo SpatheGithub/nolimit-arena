@@ -4,8 +4,29 @@
     {
       "name": "table-viz",
       "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "arena.viz", "--demo", "--port", "8765", "--no-browser"],
+      "runtimeArgs": [
+        "-m",
+        "arena.viz",
+        "--demo",
+        "--port",
+        "8765",
+        "--no-browser"
+      ],
       "port": 8765
+    },
+    {
+      "name": "event-viz",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": [
+        "-m",
+        "arena.viz",
+        "--event",
+        "latest",
+        "--port",
+        "8770",
+        "--no-browser"
+      ],
+      "port": 8770
     }
   ]
 }

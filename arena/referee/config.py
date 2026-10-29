@@ -31,10 +31,14 @@ class Team:
     workspace: str
 
 
+REPLACED = {"models"}  # mappings that are values, not sections: a config's model mix replaces the default one
+
+
 def _merge(base: dict, over: dict) -> dict:
     out = copy.deepcopy(base)
     for k, v in (over or {}).items():
-        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+        merge = isinstance(v, dict) and isinstance(out.get(k), dict) and k not in REPLACED
+        out[k] = _merge(out[k], v) if merge else v
     return out
 
 

@@ -1,0 +1,29 @@
+# Calibration before a full-strength event: 2 Opus 5.5 builders at max effort, a 15-minute
+# build, 1 tournament. Run it with no other Claude session active on the login, then read
+# the cost and the "Plan usage meter" line in REPORT.md to size configs/full-opus.yaml.
+#   python -m arena.referee new configs/calibrate-opus.yaml
+#   python -m arena.referee run calibrate-opus
+event:
+  name: calibrate-opus
+  seed: 11
+builders:
+  count: 2
+  models:
+    opus: 2
+  effort: max
+  archetypes: none
+auth:
+  mode: subscription
+schedule:
+  build_minutes: 15
+  submit_cooldown_seconds: 120
+  tournaments: 1
+  patch_minutes: 0
+variant: nlhe
+table:
+  points: standard
+  blinds:
+    schedule: doubling
+kit:
+  localsim_max_tables: 1000
+  localsim_max_seconds: 240

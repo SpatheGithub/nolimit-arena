@@ -9,6 +9,7 @@ builders:
   count: 2
   models:
     sonnet: 2
+  effort: null                  # as run at milestone 5: the model's default
   archetypes: none
   max_budget_usd_per_builder: 5
 auth:

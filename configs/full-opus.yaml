@@ -1,0 +1,35 @@
+# A full-strength field: Opus 5.5 at max effort with the official timing (60-minute build,
+# 20-minute patch windows, 6 tournaments). On a claude.ai login it spans several five-hour
+# usage windows: when the limit stops the builders, the referee waits for the reset and
+# carries on with the time the window had left.
+#   python -m arena.referee new configs/full-opus.yaml
+#   python -m arena.referee isolation full-opus-001     # a fraction of a cent, Haiku
+#   python -m arena.referee run full-opus-001           # in screen; live viewer on 127.0.0.1:8766
+event:
+  name: full-opus-001
+  seed: null
+builders:
+  count: 16                     # two full tables per iteration and no house fillers; about this Mac's ceiling
+  models:
+    opus: 16
+  effort: max
+  archetypes: assign_half       # half get a starting direction, so the field isn't 16 copies of one design
+  launch_stagger_seconds: 5
+auth:
+  mode: subscription
+schedule:
+  build_minutes: 60             # (real)
+  submit_cooldown_seconds: 300  # (real)
+  tournaments: 6                # (real)
+  patch_minutes: 20             # (real)
+  on_usage_limit: wait
+variant: nlhe
+table:
+  points: standard
+  blinds:
+    schedule: doubling
+tournament:
+  iterations: 1000              # 2,000 tables per tournament, for tighter rankings than the 400 default
+kit:
+  localsim_max_tables: 1000     # 16 builders share the machine, not 40
+  localsim_max_seconds: 240

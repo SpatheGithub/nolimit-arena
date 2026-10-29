@@ -11,15 +11,59 @@
 
 Run the referee from your own terminal (tmux or screen), not inside a Claude
 Code session: it starts and stops many Claude Code processes.
+
+`run` also serves the live viewer (builders, then tables) on 127.0.0.1:8766
+unless --no-viz. When the plan's five-hour usage limit stops the builders, it
+waits for the reset and carries on with the time the window had left
+(schedule.on_usage_limit: wait | stop), so an event can span several windows.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+import threading
+import time
+import webbrowser
 
+from ..tournament.wsstate import fmt_clock
 from .commands import cleanup, enter, gauntlet, status
 from .event import Event, Paused
+
+
+def start_viewer(ev: Event) -> None:
+    from ..viz.server import Source, serve
+    try:
+        server, url = serve(Source(event_dir=ev.dir), port=8766)
+    except OSError:
+        return
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    print(f"Live viewer: {url}", flush=True)
+    if sys.stdout.isatty():
+        webbrowser.open(url)
+
+
+def run(ev: Event, mock: bool, time_scale: float) -> int:
+    while True:
+        if ev.state.get("paused"):
+            print(f"resuming a paused event ({ev.state['paused']}); the window continues with the time it had left",
+                  flush=True)
+            ev.resume_paused()
+        try:
+            ev.run(mock=mock, time_scale=time_scale)
+            return 0
+        except Paused as e:
+            if ev.state.get("pause_kind") != "usage_limit" or ev.cfg["schedule"].get("on_usage_limit") == "stop":
+                print(f"PAUSED: {e}. Fix the cause (auth, usage limits), then run again.")
+                return 2
+            now = time.time()
+            resume_at = max(now + 300, (ev.state.get("resets_at") or now + 1800) + 120)
+            ev.state["resume_at"] = resume_at
+            ev.save()
+            print(f"PAUSED: {e}. Waiting for the plan's usage window to reset; resuming at {fmt_clock(resume_at)}. "
+                  "Ctrl-C stops waiting; `run` again resumes.", flush=True)
+            while time.time() < resume_at:
+                time.sleep(min(30.0, max(0.0, resume_at - time.time())))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("event")
     p.add_argument("--mock", action="store_true", help="scripted builders instead of Claude (free)")
     p.add_argument("--time-scale", type=float, default=1.0)
+    p.add_argument("--no-viz", action="store_true", help="don't serve the live viewer")
     for name in ("status", "report", "debrief", "cleanup"):
         sub.add_parser(name).add_argument("event")
     p = sub.add_parser("enter")
@@ -61,14 +106,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     ev = Event(a.event)
     if a.cmd == "run":
-        if ev.state.get("paused"):
-            print(f"resuming a paused event ({ev.state['paused']}); the current window restarts")
-            ev.resume_paused()
-        try:
-            ev.run(mock=a.mock, time_scale=a.time_scale)
-        except Paused as e:
-            print(f"PAUSED: {e}. Fix the cause (auth, usage limits), then run again.")
-            return 2
+        if not a.no_viz:
+            start_viewer(ev)
+        code = run(ev, a.mock, a.time_scale)
+        if code:
+            return code
         print(f"{ev.id} done: report at {ev.p('report', 'REPORT.md')}")
     elif a.cmd == "status":
         print(status(ev))

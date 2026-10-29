@@ -391,6 +391,25 @@ Use a cheap model alias for the isolation-proof run, and cap it with `--max-turn
 - **Either way, a full default event very likely can't finish inside one five-hour window, and overage is disabled.** Options: a scaled event (for example 8 builders, a 20-minute build and 2 tournaments, about a tenth of the builder-minutes), an API key, or asking the org admin about limits.
 - **To calibrate:** run the next real event with no other Claude sessions on the login and read the meter line in its REPORT.md.
 
+### Strong builders: Opus 5.5 at max effort (checked 2026-10-29)
+
+From `claude --help` (2.1.300) and the model-config docs page:
+
+- **`--effort <level>`** takes `low`, `medium`, `high`, `xhigh` or `max`. Opus 5.5 supports all five. **Claude Code's default for Opus 5.5, Sonnet 5.5 and Haiku 5.5 is `medium`**, so the M5 Sonnet builders ran at medium.
+- **`max` can't be saved in settings:** `effortLevel` and `modelSettings` reject it. Only `--effort`, `CLAUDE_CODE_EFFORT_LEVEL` or `/effort` set it. The referee passes `--effort` on every run, including resumes, from `builders.effort`.
+- **`opus` resolves to Opus 5.5** on the Anthropic API from v2.1.280. The referee records the model each session reports in `system/init`. `best` would pick Fable 5.1, which in `-p` mode can bill to usage credits without asking, so it isn't used.
+- **An org cap on effort** produces a stderr warning naming the requested and applied levels in plain-text `--print` runs. Stream-json behavior isn't documented, so check `logs/<team>.stderr` after the first Opus event.
+- **Thinking can't be turned off on Opus 5.5,** and thinking tokens bill as output.
+- **API prices** (per million tokens, from the bundled API reference, cached 2026-10-06): Opus 5.5 costs $4 input, $20 output and $0.20 cache read; Sonnet 5.5 costs $2, $10 and $0.20. Cache writes cost 1.25× input.
+
+### Estimate: the full-strength field (`configs/full-opus.yaml`)
+
+- **Builder time:** 16 builders × (60 + 5 × 20) minutes is **2,560 builder-minutes**. Without pauses that's about 3 hours 10 minutes of wall clock: 160 minutes of windows plus six tournaments of about 2 minutes.
+- **Per working minute:** measured $0.065 for Sonnet at medium. Opus doubles the output and cache-write prices, max effort thinks several times longer, and contexts grow over a 160-minute session. **Guess: $0.15 to $0.40 per working minute.**
+- **Total:** if builders work 70% of each window (clock checks keep them going), that's about **$270 to $720 at API prices, around $400.**
+- **Plan meter:** the M5 readings suggest roughly $20 to $100 of API-price usage per five-hour window on this login. They include the operator's session, so the low end is the cautious one. **So $400 would take about 4 to 20 windows, or 1 to 4 days with the waits.**
+- **Calibrate first:** run 2 Opus-max builders through a 15-minute build with no other Claude session active, and read the meter line in REPORT.md. That turns the 4-to-20 range into a measurement before committing days.
+
 ## Open questions
 
 - **The org's terms.** Does the education Enterprise contract bill by usage or by seat? Does it allow automated, parallel `claude -p` use on one seat? Does the org push server-managed settings (forced plugins, hooks or permission rules) that would override builder settings?

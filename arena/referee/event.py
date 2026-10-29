@@ -34,7 +34,7 @@ from ..tournament.play import derive
 from ..tournament.pool import Entry
 from ..tournament.tournament import default_workers, run_tournament
 from ..tournament.validate import validate
-from ..tournament.wsstate import fmt_clock, submissions as ws_submissions, write_json_atomic
+from ..tournament.wsstate import fmt_clock, fmt_duration, submissions as ws_submissions, write_json_atomic
 from ..variants.render import render_event_md
 from .builders import (builder_env, claude_command, ensure_builder_venv, env_file, mock_command, python_base_prefix,
                        read_stream, team_settings, write_settings)
@@ -210,11 +210,14 @@ class Event:
         else:
             session = b.get("session_id") or str(uuid.uuid4())
             b["session_id"] = session
-            first = "The build phase has started. Read EVENT.md, then build and submit your bot."
+            first = (f"The build phase has started, and you have {fmt_duration(deadline - time.time())}. Read EVENT.md, "
+                     "then build the strongest bot you can: get a valid version accepted early, then test it, find "
+                     "where it loses points and improve it until the clock is nearly out.")
             budget = self.cfg["builders"].get("max_budget_usd_per_builder")
             cmd = claude_command(prompt or first, model=t.model, brief_file=self.p("briefs", f"{t.team}.md"),
                                  settings_file=self.p("settings", f"{t.team}.json"), session_id=session,
-                                 auth_mode=self.cfg["auth"]["mode"], resume=resume, budget_usd=budget)
+                                 auth_mode=self.cfg["auth"]["mode"], resume=resume, budget_usd=budget,
+                                 effort=self.cfg["builders"].get("effort"))
             env = self.builder_env()
         out = open(self.p("logs", f"{t.team}.jsonl"), "a")
         err = open(self.p("logs", f"{t.team}.stderr"), "a")
@@ -293,6 +296,8 @@ class Event:
             b["cost_usd"] = s["cost_usd"]
             b["errors"] = s["errors"]
             b["usage"] = [s["usage_first"], s["usage"]]
+            if s["model"]:
+                b["model"] = s["model"]  # what the alias resolved to, from the session's init event
         self.save()
 
     # ------------------------------------------------------------ windows
@@ -351,10 +356,11 @@ class Event:
             self.note("nudged", team=t.team, window=window, left_s=round(left))
 
     def resume_paused(self) -> None:
-        """Restart the window that was paused, with its full length, and relaunch builders."""
+        """Continue the paused window with the time it had left; builders resume their
+        sessions (see _watch_window). Events can span several five-hour plan windows this way."""
         w = self.state["windows"][-1]
-        length = w["end"] - w["start"]
-        w["start"], w["end"] = time.time(), time.time() + length
+        left = w["end"] - (self.state.get("paused_at") or w["start"])
+        w["start"], w["end"] = time.time(), time.time() + max(left, 0)
         for t in self.teams:
             write_clock(t.workspace, [{"name": f"{w['kind'].title()} window", "start": w["start"], "end": w["end"],
                                        "then": "The next tournament starts with your latest accepted submission.",
@@ -363,8 +369,8 @@ class Event:
             b.pop("phase", None)
             log = self.p("logs", f"{t.team}.jsonl")
             b["errors_from"] = os.path.getsize(log) if os.path.exists(log) else 0  # the errors that paused us are done
-        self.state["paused"] = None
-        self.note("resumed", window=w["kind"])
+        self.state.update(paused=None, paused_at=None, pause_kind=None, resets_at=None, resume_at=None)
+        self.note("resumed", window=w["kind"], left_s=round(w["end"] - w["start"]))
 
     def _check_failures(self) -> None:
         bad = []
@@ -374,8 +380,14 @@ class Event:
                 bad.append(t.team)
         if len(bad) > 0.2 * len(self.teams):
             self._stop_all()
-            self.state["paused"] = f"{len(bad)} of {len(self.teams)} builders failed to start or hit auth/usage errors"
-            self.note("paused", teams=bad)
+            streams = [self.stream(team) for team in bad]
+            usage = any("usage_limit" in s["errors"] for s in streams)
+            self.state.update(
+                paused=(f"the plan's usage limit stopped {len(bad)} of {len(self.teams)} builders" if usage else
+                        f"{len(bad)} of {len(self.teams)} builders failed to start or hit auth/usage errors"),
+                paused_at=time.time(), pause_kind="usage_limit" if usage else "failure",
+                resets_at=max((s["resets_at"] or 0 for s in streams), default=0) or None)
+            self.note("paused", teams=bad, kind=self.state["pause_kind"])
             raise Paused(self.state["paused"])
 
     def _observe_submissions(self, final: bool = False) -> None:

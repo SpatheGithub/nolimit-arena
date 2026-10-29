@@ -3,6 +3,7 @@
 import json
 import os
 import threading
+import time
 import urllib.request
 from http.server import ThreadingHTTPServer
 
@@ -10,7 +11,8 @@ from arena.engine.spec import NLHE
 from arena.tournament.play import Settings
 from arena.tournament.pool import Entry
 from arena.tournament.tournament import run_tournament
-from arena.viz.server import Handler, Source
+from arena.viz.server import Handler, Source, latest_event, serve
+from arena.viz.status import event_status
 
 BOTS = os.path.join(os.path.dirname(__file__), "bots")
 
@@ -34,6 +36,52 @@ def test_viewer_api_serves_live_logs(tmp_path):
         table = get(f"/api/table?task={task}")
         assert len(table["names"]) == 8 and len(table["hands"]) == table["table"]["hands"]
         assert b"Live Tables" in urllib.request.urlopen(base + "/").read()
+    finally:
+        server.shutdown()
+
+
+def test_event_status_shows_builders_between_tournaments(tmp_path):
+    ev = tmp_path / "events" / "ev1"
+    (ev / "logs").mkdir(parents=True)
+    (ev / "submissions" / "b01").mkdir(parents=True)
+    now = time.time()
+    (ev / "card.json").write_text(json.dumps({"tournaments": 2, "variant": {"name": "nlhe"}}))
+    (ev / "teams.json").write_text(json.dumps([{"team": "b01", "model": "opus", "archetype": None},
+                                               {"team": "b02", "model": "opus", "archetype": "survival"}]))
+    (ev / "state.json").write_text(json.dumps({
+        "phase": "build", "windows": [{"kind": "build", "k": 0, "start": now - 60, "end": now + 600}],
+        "builders": {"b01": {"pid": os.getpid(), "launches": 2, "nudges": {"build:0": 1}},
+                     "b02": {"pid": 0, "launches": 1}}}))
+    (ev / "submissions" / "b01" / "index.jsonl").write_text('{"sid": "001-a"}\n{"sid": "002-b"}\n')
+    call = {"type": "tool_use", "name": "Bash", "input": {"command": "python kit/localsim.py",
+                                                           "description": "Play 200 tables against the zoo"}}
+    meter = {"type": "rate_limit_event", "rate_limit_info": {"status": "allowed", "unifiedWindows": {
+        "five_hour": {"utilization": 0.42, "resetsAt": now + 3600}}}}
+    (ev / "logs" / "b01.jsonl").write_text("not json\n" + json.dumps(meter) + "\n" + json.dumps(
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "Testing."}, call]}}) + "\n")
+    st = event_status(str(ev))
+    assert st["label"] == "Build window" and st["tournaments"] == {"done": 0, "total": 2}
+    b1, b2 = st["builders"]
+    assert b1["status"] == "working" and b1["subs"] == 2 and b1["checks"] == 1  # this test's pid is alive
+    assert b1["last"] == "Bash: Play 200 tables against the zoo" and b2["status"] == "idle"
+    assert st["meter"]["used"] == 0.42 and st["leaderboard"] is None
+    (ev / "results" / "T1").mkdir(parents=True)
+    (ev / "results" / "T1" / "summary.json").write_text(json.dumps({"meta": {}, "entries": [
+        {"name": "b02", "mean": 30.0, "lo": 28.0, "hi": 32.0}, {"name": "b01", "mean": 35.0, "lo": 33.0, "hi": 37.0}]}))
+    state = json.loads((ev / "state.json").read_text())
+    (ev / "state.json").write_text(json.dumps({**state, "phase": "patch:1"}))
+    st = event_status(str(ev))
+    assert st["label"] == "Patch window before T2" and [r["team"] for r in st["leaderboard"]["rows"]] == ["b01", "b02"]
+    (tmp_path / "events" / "older").mkdir()
+    (tmp_path / "events" / "older" / "state.json").write_text("{}")
+    os.utime(tmp_path / "events" / "older" / "state.json", (now - 999, now - 999))
+    assert latest_event(str(tmp_path / "events")) == str(ev)
+    server, url = serve(Source(events_root=str(tmp_path / "events")), port=18765)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        got = json.loads(urllib.request.urlopen(url + "api/event").read())
+        assert got["id"] == "ev1" and got["builders"][0]["team"] == "b01"
+        assert json.loads(urllib.request.urlopen(url + "api/state").read())["event"] == "ev1"
     finally:
         server.shutdown()
 

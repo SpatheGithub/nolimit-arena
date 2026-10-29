@@ -92,7 +92,7 @@ In short:
 
 - **Get a valid bot accepted early.** A team with no accepted submission doesn't play at all.
 - **Precompute; don't simulate at decision time.** In Python, 1 ms is enough for lookups and arithmetic, but not for simulation during a decision. If you want equities or ranges, compute them now and ship them as files in `bot/`.
-- **Keep heavy jobs small.** Precomputation competes with {{N_OTHERS}} other teams for CPU. Use a single process, keep jobs to a couple of minutes, and run them under `nice`.
+- **Share the CPU.** Precomputation competes with {{N_OTHERS}} other teams for CPU, so use a single process and run heavy jobs under `nice`. A shell command stops after 2 minutes unless you give it a longer timeout, up to 10 minutes; split anything longer into resumable chunks.
 - **Re-check your assumptions about today's rules.** The variant and the points table change what good play is. Hand rankings, deck size and card-use rules may not be what hold'em intuition says.
 - **Check before every submission.** Run `kit/check_bot.py` before each submit. A broken late submission can cost more than it gains.
 - **Nobody can approve a command.** A shell command that would need approval is refused instead. Edit files with the Edit tool rather than `sed -i` chained with other commands, keep every path inside this workspace, and don't prefix commands with `VAR=value`.

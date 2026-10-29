@@ -13,8 +13,10 @@ import pytest
 import yaml
 
 from arena.referee.builders import TOOLS, builder_env, claude_command, read_stream, team_settings, write_env_file
+import arena.referee.__main__ as referee_main
+import arena.referee.event as event_module
 from arena.referee.config import Team, assign_teams, draw_event, load_config
-from arena.referee.event import Event
+from arena.referee.event import Event, Paused
 from arena.referee.prompts import render_nudge
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +70,10 @@ def test_builder_command_and_settings(tmp_path):
                          auth_mode="api_key", resume=True, budget_usd=3)
     assert "--bare" in api and api[api.index("--resume") + 1] == "u1" and "--session-id" not in api
     assert api[api.index("--append-system-prompt-file") + 1] == "/b.md"  # resumed runs get the brief too
+    assert "--effort" not in api
+    strong = claude_command("go", model="opus", brief_file="/b.md", settings_file="/s.json", session_id="u1",
+                            auth_mode="subscription", resume=True, effort="max")
+    assert strong[strong.index("--effort") + 1] == "max"  # on every run: settings files can't hold "max"
     nudge = render_nudge(125, "12:34:56", "003-abc")
     assert "2m 05s left" in nudge and "12:34:56" in nudge and "003-abc" in nudge
     assert "no accepted submission" in render_nudge(60, "12:34:56", None)
@@ -87,7 +93,7 @@ def test_builder_command_and_settings(tmp_path):
 
 def test_read_stream_tells_interrupts_and_idle_runs_from_failures(tmp_path):
     def init():
-        return {"type": "system", "subtype": "init", "session_id": "s1", "tools": ["Bash"]}
+        return {"type": "system", "subtype": "init", "session_id": "s1", "tools": ["Bash"], "model": "claude-opus-5-5"}
 
     def result(cost, **kw):
         return {"type": "result", "subtype": "success", "is_error": False, "session_id": "s1",
@@ -106,15 +112,16 @@ def test_read_stream_tells_interrupts_and_idle_runs_from_failures(tmp_path):
     assert s["idle_streak"] == 2 and s["run_calls"] == 0 and s["cost_usd"] == 0.14  # cost is cumulative
     size = log.stat().st_size
     retry = {"type": "system", "subtype": "api_retry", "attempt": 1, "error_status": 429, "error": "rate_limit"}
-    meter = {"type": "rate_limit_event", "rate_limit_info": {"status": "rejected",
-                                                            "unifiedWindows": {"five_hour": {"utilization": 1.0}}}}
+    meter = {"type": "rate_limit_event", "rate_limit_info": {"status": "rejected", "unifiedWindows": {
+        "five_hour": {"utilization": 1.0, "resetsAt": 1793260200}}}}
     with open(log, "a") as f:
         for row in (init(), retry, meter, result(0.15, subtype="error_during_execution", is_error=True,
                                                  terminal_reason="api_error")):
             f.write(json.dumps(row) + "\n")
     s = read_stream(str(log))
     assert s["errors"] == ["usage_limit", "error_during_execution"] and s["retries"] == 1  # a retry alone isn't fatal
-    assert s["idle_streak"] == 3 and s["usage"] == 1.0
+    assert s["idle_streak"] == 3 and s["usage"] == 1.0 and s["resets_at"] == 1793260200
+    assert s["model"] == "claude-opus-5-5"
     s = read_stream(str(log), errors_from=log.stat().st_size)  # after a resume, old errors don't count
     assert s["errors"] == [] and s["events_since"] == 0 and s["results"] == 5
     assert read_stream(str(log), errors_from=size)["events_since"] == 4
@@ -145,6 +152,34 @@ def test_clock_check_resumes_finished_builders_with_backoff(tmp_path, monkeypatc
     assert launched == []
 
 
+def test_usage_limit_pause_waits_for_the_reset_and_keeps_the_time_left(tmp_path, monkeypatch):
+    ev = Event.new(config(tmp_path, "limit", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    now = [1_000_000.0]
+    clock = type("Clock", (), {"time": staticmethod(lambda: now[0]),
+                               "sleep": staticmethod(lambda s: now.__setitem__(0, now[0] + s))})
+    monkeypatch.setattr(referee_main, "time", clock)
+    monkeypatch.setattr(event_module.time, "time", lambda: now[0])
+    ev.state["windows"] = [{"kind": "build", "k": 0, "start": now[0] - 600, "end": now[0] + 1200}]
+    calls = []
+
+    def fake_run(mock, time_scale):
+        calls.append(now[0])
+        if len(calls) == 1:  # the plan's limit stops everyone 10 minutes into a 30-minute window
+            ev.state.update(paused="usage limit", paused_at=now[0], pause_kind="usage_limit", resets_at=now[0] + 3600)
+            raise Paused("usage limit")
+
+    monkeypatch.setattr(ev, "run", fake_run)
+    monkeypatch.setattr(ev, "save", lambda: None)
+    assert referee_main.run(ev, mock=False, time_scale=1.0) == 0
+    assert calls[1] - calls[0] >= 3600 + 120  # waited for the reset, plus a margin
+    w = ev.state["windows"][-1]
+    assert w["end"] - w["start"] == 1200 and not ev.state["paused"]  # the 20 minutes it had left
+    ev.cfg["schedule"]["on_usage_limit"] = "stop"
+    calls.clear()
+    assert referee_main.run(ev, mock=False, time_scale=1.0) == 2
+
+
 def run_referee(args, events_root, **kw):
     env = {**os.environ, "ARENA_EVENTS_ROOT": events_root, "PYTHONPATH": REPO}
     return subprocess.Popen([sys.executable, "-m", "arena.referee", *args], cwd=REPO, env=env,
@@ -157,7 +192,7 @@ def test_mock_event_survives_a_crash_and_resumes(tmp_path):
     p = run_referee(["new", config(tmp_path, "crashy")], events)
     assert p.wait(120) == 0, p.stdout.read()
     state_path = os.path.join(events, "crashy", "state.json")
-    p = run_referee(["run", "crashy", "--mock", "--time-scale", "0.01"], events, start_new_session=True)
+    p = run_referee(["run", "crashy", "--mock", "--time-scale", "0.01", "--no-viz"], events, start_new_session=True)
     deadline = time.time() + 300
     while time.time() < deadline:
         time.sleep(0.5)
@@ -170,7 +205,7 @@ def test_mock_event_survives_a_crash_and_resumes(tmp_path):
     os.killpg(p.pid, signal.SIGKILL)   # the referee dies mid patch window
     p.wait(30)
     assert json.load(open(state_path))["phase"].startswith("patch")
-    p = run_referee(["run", "crashy"], events)
+    p = run_referee(["run", "crashy", "--no-viz"], events)
     out, _ = p.communicate(timeout=600)
     assert p.returncode == 0, out
     state = json.load(open(state_path))
