@@ -61,6 +61,13 @@ def next_allowed(ws: str, cooldown_s: float) -> float:
     return last["time"] + cooldown_s if last else 0.0
 
 
+def write_json_atomic(path: str, obj) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f, indent=1, default=str)
+    os.replace(tmp, path)
+
+
 def fmt_duration(seconds: float) -> str:
     seconds = max(0, int(round(seconds)))
     m, s = divmod(seconds, 60)

@@ -67,8 +67,10 @@ def write_clock(ws: str, windows: list[dict]) -> None:
     os.replace(tmp, os.path.join(ws, ".clock.json"))
 
 
-def build_workspace(ws: str, card: dict, event_md: str, brief_md: str | None = None,
+def build_workspace(ws: str, card: dict | None, event_md: str, brief_md: str | None = None,
                     windows: list[dict] | None = None) -> None:
+    """Create the workspace. With ``card=None`` (before the reveal) kit/event.json
+    is left out; the referee writes it with EVENT.md when the build starts."""
     if os.path.exists(os.path.join(ws, "bot")):
         raise FileExistsError(f"{ws} already has a bot/")
     kit = os.path.join(ws, "kit")
@@ -77,7 +79,8 @@ def build_workspace(ws: str, card: dict, event_md: str, brief_md: str | None = N
         shutil.copy2(os.path.join(KIT_SRC, name), kit)
     copy_arena_subset(os.path.join(kit, "arena"))
     copy_house_bots(os.path.join(kit, "house_bots"))
-    save_card(card, os.path.join(kit, "event.json"))
+    if card is not None:
+        save_card(card, os.path.join(kit, "event.json"))
     os.makedirs(os.path.join(ws, "bot"))
     shutil.copy2(os.path.join(KIT_SRC, "agent_template.py"), os.path.join(ws, "bot", "agent.py"))
     open(os.path.join(ws, "bot", "__init__.py"), "w").close()

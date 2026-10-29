@@ -12,6 +12,7 @@ table retried, up to twice.
 from __future__ import annotations
 
 import collections
+import gc
 import multiprocessing as mp
 import sys
 import time
@@ -65,6 +66,10 @@ def _worker_main(slot: int, entries: list[Entry], st: Settings, conn, hb_array) 
                 classes[path] = cls if failure is None else None
                 if failure:
                     problems[path] = f"import {failure}: " + " | ".join(cap.lines)[:300]
+                # A full collection over freshly imported tables can take >10 ms and would
+                # land inside whichever bot acts next; collect now and freeze what's loaded.
+                gc.collect()
+                gc.freeze()
         return classes[path]
 
     conn.send(("ready", notes + runner.notes))

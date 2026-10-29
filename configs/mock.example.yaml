@@ -1,0 +1,19 @@
+# A free pipeline test: 40 scripted builders, 3 tournaments, patch rounds.
+#   python -m arena.referee new configs/mock.example.yaml
+#   python -m arena.referee run mock-040 --mock --time-scale 0.05
+event:
+  name: mock-040
+  seed: 40
+builders:
+  count: 40
+  models:
+    sonnet: 32
+    opus: 8
+  archetypes: assign_half
+schedule:
+  tournaments: 3
+variant: nlhe
+table:
+  points: standard
+  blinds:
+    schedule: doubling
