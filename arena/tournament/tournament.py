@@ -119,7 +119,8 @@ def summarize(entries: list[Entry], results: dict[int, dict], st: Settings) -> l
             "wtsd": s["showdowns"] / hands, "showdown_win": s["showdown_wins"] / max(s["showdowns"], 1),
             **{k: s[k] for k in STAT_KEYS if k not in ("vpip", "pfr", "cpu_ns_sum", "cpu_ns_max", "wall_ns_max")},
             "cpu_mean_us": s["cpu_ns_sum"] / decided / 1000,
-            "cpu_p50_us": _percentile_us(hist[e], 0.5), "cpu_p99_us": _percentile_us(hist[e], 0.99),
+            "cpu_p50_us": min(_percentile_us(hist[e], 0.5), s["cpu_ns_max"] / 1000),
+            "cpu_p99_us": min(_percentile_us(hist[e], 0.99), s["cpu_ns_max"] / 1000),
             "cpu_max_us": s["cpu_ns_max"] / 1000, "wall_max_us": s["wall_ns_max"] / 1000,
             "output": output[e],
         })
@@ -130,14 +131,20 @@ def summarize(entries: list[Entry], results: dict[int, dict], st: Settings) -> l
 
 
 def run_tournament(entries: list[Entry], settings: Settings, iterations: int = 400, seed: int = 0,
-                   workers: int = 0, log_dir: str | None = None, progress=None) -> dict:
+                   workers: int = 0, log_dir: str | None = None, progress=None,
+                   time_budget_s: float | None = None) -> dict:
+    """Play the tournament. With ``time_budget_s``, tables still unplayed when
+    the budget runs out are skipped (for local practice runs)."""
     workers = workers or default_workers(settings.timing)
     tasks = plan_tables(len(entries), iterations, settings.seats, seed)
     t0 = time.perf_counter()
     with TablePool(entries, settings, workers) as pool:
         t1 = time.perf_counter()
-        results = pool.run(tasks, progress)
+        deadline = time.monotonic() + time_budget_s if time_budget_s else None
+        results = pool.run(tasks, progress, deadline)
         notes, events = pool.notes, pool.events
+    if len(results) < len(tasks):
+        tasks = [t for t in tasks if t.task_id in results]
     elapsed = time.perf_counter() - t1
     log_bytes = 0
     if log_dir and settings.hand_logs:

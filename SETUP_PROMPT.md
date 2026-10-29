@@ -263,7 +263,7 @@ A builder should never need the engine source to understand the rules.
 - `kit/clock.py`
 - `kit/icm.py`
 - `kit/house_bots/`
-- `kit/engine/`, a read-only copy
+- `kit/arena/`, a read-only copy of the engine, runner and tournament code the referee runs (the kit scripts import it)
 - a stub `NOTES.md`
 
 **localsim and check_bot.** 40 teams share the machine, so:

@@ -83,7 +83,7 @@ In short:
   - It runs on one core and is capped at {{LOCALSIM_CAP}} tables per run, because {{N_OTHERS}} other teams share this machine.
   - Run `--help` for options.
 - **`kit/check_bot.py`:** the same validation as submit, plus fuzzing and a decision-time profile. Timings here are inflated by the busy machine; the referee re-times every bot on an idle machine.
-- **`kit/icm.py`, `kit/house_bots/`, `kit/engine/`:** the ICM calculator, simple opponents, and the game engine source. Read them freely, and copy anything useful into `bot/`.
+- **`kit/icm.py`, `kit/house_bots/`, `kit/arena/engine/`:** the ICM calculator, simple opponents, and the game engine source (the hand evaluator is `kit/arena/engine/fasteval.py`). Read them freely, and copy anything useful into `bot/`. Don't import `kit` or `arena` from your bot: submit.py rejects that, because neither exists at the real event.
 - **`NOTES.md`:** your notes. The referee collects them.
 
 ## Practical notes
