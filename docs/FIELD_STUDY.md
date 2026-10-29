@@ -17,6 +17,7 @@ Every event should answer two questions:
   - **population-level:** built into the bot's static strategy, from what the field does on average; or
   - **in-table:** learned within one table, with at most 200 hands and 7 opponents.
 - **Teams can resubmit between tournaments.** Later tournaments weigh more (T6 is 6/21 of the final score), so adjusting to the observed field between tournaments pays.
+- **The goal is a top-5 rank, not a mean.** The top 5 at each regional advance, with up to 5 wildcards by score. A bot whose expected rank sits just outside the cutoff should prefer variance, and one comfortably inside it should avoid variance. Reports must therefore show rank distributions and P(top 5), not only mean points.
 
 ## Hypotheses the arena tests
 
@@ -52,9 +53,10 @@ These are not findings yet. Each needs evidence from real events before it shape
 **Milestone 6.** Variant docs list the hold'em intuitions each variant breaks. EVENT.md stays neutral; this list is for our analysis.
 
 **Milestone 7: report and debrief.**
-- **REPORT.md** gains two sections:
+- **REPORT.md** gains three sections:
   - **Field profile:** aggregate tendencies of the builders' bots with intervals, and the biggest leaks per bot;
-  - **Exploit board:** which zoo or builder bots gained most from which leaks.
+  - **Exploit board:** which zoo or builder bots gained most from which leaks;
+  - **Rank view:** each bot's distribution of final weighted rank across bootstrap resamples, and its probability of finishing top 5.
 - **The debrief** adds "Where the field leaks points" and "Exploits that worked" to `DEBRIEF.md`, and the lessons it appends to `LESSONS.md` cover leaks as well as winners.
 
 ## Field realism

@@ -33,8 +33,10 @@ This repo is a local arena that simulates the No Limit pokerbot tournament and r
 
 Keep this list current as commands are added.
 
-- `pytest -q`
-- `python -m arena.bench`
+- `uv venv --python 3.12 .venv && uv pip install -e '.[test]'` (native arm64 Python; Homebrew and Anaconda on this Mac are Intel builds under Rosetta)
+- `pytest -q` (`-m "not slow"` skips the 100k-hand pokerkit cross-validation and the exhaustive evaluator census)
+- `python -m arena.engine.xval 100000` (engine vs pokerkit; prints counts of the documented rule differences)
+- `python -m arena.bench [--workers 1,4,9]`
 - `python -m arena.referee new configs/event.yaml`
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X]`
 - `python -m arena.referee status|report|debrief|cleanup <event-id>`

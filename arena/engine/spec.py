@@ -15,6 +15,7 @@ configs and event cards, and ``VariantSpec.from_dict()`` reverses it.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import asdict, dataclass
 
 from .cards import RANKS, SUITS, make_deck
@@ -84,7 +85,10 @@ class VariantSpec:
     betting: Betting = Betting()
 
     def deck(self) -> list[int]:
-        return make_deck(self.ranks, self.suits)
+        return list(_deck(self.ranks, self.suits))
+
+    def deck_tuple(self) -> tuple[int, ...]:
+        return _deck(self.ranks, self.suits)
 
     @property
     def deck_size(self) -> int:
@@ -140,6 +144,11 @@ class VariantSpec:
         )
 
 
+@functools.cache
+def _deck(ranks: str, suits: str) -> tuple[int, ...]:
+    return tuple(make_deck(ranks, suits))
+
+
 def _listify(x):
     if isinstance(x, dict):
         return {k: _listify(v) for k, v in x.items()}
@@ -162,6 +171,8 @@ def _problems(spec: VariantSpec, n_players: int | None) -> list[str]:
         err.append("no streets")
     if not spec.betting_streets:
         err.append("no betting round")
+    elif not spec.streets[0].bet:
+        err.append("the first street must have a betting round; the blinds are posted into it")
     held = 0
     for s in spec.streets:
         if min(s.discard, s.hole, s.board) < 0:

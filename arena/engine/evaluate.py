@@ -1,8 +1,9 @@
 """Hand evaluation for any VariantSpec.
 
 ``get_evaluator(spec).evaluate(hole, board)`` returns a canonical int for the
-best five-card hand the spec's card-use rule allows. Values are comparable
-within one spec only: higher wins, equal values tie.
+best five-card hand the spec's card-use rule allows; ``showdown(holes, board)``
+returns one per hole, aligned. Values are comparable within one spec only:
+higher wins, equal values tie.
 
     value = strength << 20 | t0 << 16 | t1 << 12 | t2 << 8 | t3 << 4 | t4
 
@@ -18,17 +19,22 @@ category, most significant first, zero-padded:
     full_house                 trips rank, pair rank
     quads                      quads rank, kicker
 
-GenericEvaluator is the slow reference: it works for every spec and is what
-faster evaluators are tested against.
+GenericEvaluator is the slow reference: it enumerates five-card hands, works
+for every spec and defines the values. get_evaluator returns the table-driven
+FastEvaluator (fasteval.py), which is tested to return the same values.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 from .cards import RANKS
 from .spec import VariantSpec
+
+if TYPE_CHECKING:
+    from .fasteval import FastEvaluator
 
 
 def straight_tops(ranks: str, ace_low: bool) -> dict[int, int]:
@@ -79,6 +85,9 @@ class GenericEvaluator:
             raise ValueError("no legal five-card hand")
         return best
 
+    def showdown(self, holes: Sequence[Sequence[int]], board: Sequence[int]) -> list[int]:
+        return [self.evaluate(h, board) for h in holes]
+
     def eval5(self, five: Sequence[int]) -> int:
         ranks = sorted((c >> 2 for c in five), reverse=True)
         flush = len({c & 3 for c in five}) == 1
@@ -114,12 +123,13 @@ class GenericEvaluator:
         return self.order[value >> 20]
 
 
-_CACHE: dict[VariantSpec, GenericEvaluator] = {}
+_CACHE: dict[VariantSpec, FastEvaluator] = {}
 
 
-def get_evaluator(spec: VariantSpec):
-    """The fastest evaluator available for ``spec`` (cached per spec)."""
+def get_evaluator(spec: VariantSpec) -> FastEvaluator:
+    """The fast evaluator for ``spec``, built on first use and cached per spec."""
     ev = _CACHE.get(spec)
     if ev is None:
-        ev = _CACHE[spec] = GenericEvaluator(spec)
+        from .fasteval import FastEvaluator
+        ev = _CACHE[spec] = FastEvaluator(spec)
     return ev

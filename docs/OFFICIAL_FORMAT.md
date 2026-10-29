@@ -55,15 +55,45 @@
 | Several eliminations in one hand | The larger stack at the start of the hand places higher; exact ties split those places' points |
 | Button and blinds after busts | A documented dead-button simplification (`kit/RULES.md`) |
 | Packages available to bots | Standard library + numpy |
-| Feedback between tournaments | Leaderboard, own stats, a sample of own hands (configurable) |
-| Number of iterations | 400 per tournament by default, to fit local CPU; error bars always reported |
+| Feedback between tournaments | Leaderboard, own stats, a sample of own hands (configurable). The rules imply results are published before the next tournament (disputes are due before it starts) but define no feedback to teams |
+| What one of the 10,000 iterations is | Every bot seated once per iteration (N/8 tables). The text also allows 10,000 tables in total; expected scores agree, variance and compute differ |
+| Memory, CPU, Python version, import and init time | Not stated. The arena uses `tournament.import_limit_s` and `init_limit_s` |
+| Whether 100 MB is per file or per bot | Not stated. The arena caps the whole `bot/` directory |
+| Repeated timeouts; rejected uploads and the 5-minute slot; a team with no bot at T1 | Not stated. The arena counts substitutions only, lets a rejected upload retry at once, and leaves a team with no bot out of the tournament |
+| Whether filler copies take finishing places | Not stated. The arena seats them as full players that score nothing |
 
 ## Scaled schedule for a 20-minute mini-event
 
-Times are compressed by a factor of three. The six tournaments, weighted 1–6, are kept.
+Times are compressed by about three. The six tournaments, weighted 1–6, are kept.
 
 | | Real event | Mini-event |
 | :- | :- | :- |
 | Build | 60 min | 20 min |
 | Submission cooldown | 5 min | 2 min |
 | Time between tournaments | 20 min | 7-minute patch window |
+| Iterations per tournament | 10,000 | 400, with error bars always reported |
+
+## Other official details (read October 28, 2026)
+
+- **Calendar.** Three regionals, each 6:00–9:00 PM local time with check-in from 5:30, attended in person for the whole event:
+  - Bay Area / Menlo Park, Friday November 6;
+  - Boston / Cambridge, Monday November 9;
+  - Pittsburgh, Thursday November 12.
+
+  The Finals are in San Francisco on Sunday November 15, 12:00–8:00 PM, by invitation. Each person may enter one regional.
+- **Advancement.** The top 5 teams at each regional advance and win $5,000 per team. Up to 5 wildcards are chosen across the regionals by score. The Finals pay $100K / $50K / $25K. The real objective is therefore a top-5 rank in a field of unknown size, not only a high mean score.
+- **Finals.** Same format with a different variant, so the points table may differ too.
+- **Entrants.** U.S. university students or 2025/2026 graduates, 18 or older. Teammates may attend different schools.
+- **Conduct.**
+  - The site frames the build as "from scratch". The rules allow Astra, Codex and public documentation, and say nothing about bringing prior code; ask the organizers.
+  - Collusion, copying another team's code and misusing the submission endpoint are grounds for disqualification.
+  - Submissions may not contain personal information, malware or credentials.
+- **AI at runtime.** AI may help write code but may not make live decisions. Bots may not call external APIs.
+- **Interface hints.** The homepage's exhibits are labelled simulated play, so this is not an API, but they show:
+  - an action vocabulary of blind, check, call, bet, raise, all-in and fold;
+  - raise-to sizing;
+  - a dealer that sends each bot a message and times its reply.
+
+  The arena's interface uses the same ideas.
+- **Hand logs.** Hand logs are kept for disputes, and the organizer may publish results and rankings.
+- **Amendments.** The rules may change before the build phase starts. Re-read `rules.html` on the day.
