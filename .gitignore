@@ -15,4 +15,5 @@ events/*/referee.*
 events/*/settings/
 events/*/submissions/
 events/*/results/*/hands.*
+events/chain.*
 events/*/.isolation_canary

@@ -1,0 +1,11 @@
+# Variant testing, event 2 of 4 (2026-10-30): the full-strength field of full-opus.yaml in
+# short deck (6 to A; a flush beats a full house), with the top-heavy points table.
+# The four run back to back after full-opus-002:
+#   python -m arena.referee chain configs/variant-plo.yaml configs/variant-shortdeck.yaml \
+#       configs/variant-crazy-pineapple.yaml configs/variant-royal.yaml --after full-opus-002
+extends: full-opus.yaml
+event:
+  name: shortdeck-001
+variant: shortdeck
+table:
+  points: top_heavy

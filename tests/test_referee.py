@@ -74,6 +74,20 @@ def test_listed_directions_go_to_random_builders_as_starting_ideas(tmp_path):
     with pytest.raises(ValueError, match="unknown ids"):
         assign_teams(cfg, random.Random(0))
 
+
+def test_a_config_can_extend_another(tmp_path):
+    base = config(tmp_path, "base", tournament={"iterations": 30})
+    child = tmp_path / "child.yaml"
+    child.write_text(yaml.safe_dump({"extends": "base.yaml", "event": {"name": "child"}, "variant": "plo",
+                                     "table": {"points": "top_heavy"}}))
+    cfg = load_config(str(child))
+    assert cfg["event"] == {"name": "child", "seed": 7} and cfg["variant"] == "plo"
+    assert cfg["table"]["points"] == "top_heavy" and cfg["table"]["blinds"]["schedule"] == "doubling"
+    assert cfg["tournament"]["iterations"] == 30 and "extends" not in cfg
+    for name in ("plo", "shortdeck", "crazy-pineapple", "royal"):  # the variant configs build on full-opus.yaml
+        cfg = load_config(os.path.join(REPO, "configs", f"variant-{name}.yaml"))
+        assert cfg["builders"]["effort"] == "max" and cfg["schedule"]["build_minutes"] == 60
+
 def test_builder_command_and_settings(tmp_path):
     teams = [Team(f"b0{i}", "sonnet", None, str(tmp_path / f"ws/b0{i}")) for i in (1, 2, 3)]
     s = team_settings(teams[0], teams, "/ev/mini", REPO, "/venv", ("/python",))
@@ -325,3 +339,32 @@ def test_mock_event_survives_a_crash_and_resumes(tmp_path):
     assert p.wait(120) == 0
     assert os.path.exists(os.path.join(events, "crashy", "workspaces.tar.gz"))
     assert not os.path.exists(str(tmp_path / "workspaces" / "crashy"))
+
+
+@pytest.mark.slow
+def test_chain_runs_events_back_to_back_and_resumes(tmp_path):
+    events = str(tmp_path / "events")
+    small = {"builders": {"count": 2, "models": {"sonnet": 2}, "archetypes": "none"},
+             "schedule": {"build_minutes": 10, "tournaments": 2, "patch_minutes": 5},
+             "tournament": {"iterations": 4, "workers": 2}}
+    p = run_referee(["new", config(tmp_path, "first", **small)], events)
+    assert p.wait(120) == 0, p.stdout.read()
+    paths = []
+    for name, variant in (("plo-t", "plo"), ("pine-t", "crazy_pineapple")):
+        path = tmp_path / f"{name}.yaml"
+        path.write_text(yaml.safe_dump({"extends": "first.yaml", "event": {"name": name}, "variant": variant}))
+        paths.append(str(path))
+    # "first" was created but nobody runs it, so the chain runs it before the two variant events
+    args = ["chain", *paths, "--after", "first", "--mock", "--time-scale", "0.005", "--no-viz"]
+    p = run_referee(args, events)
+    out, _ = p.communicate(timeout=600)
+    assert p.returncode == 0 and "chain done" in out, out
+    for name, variant in (("first", "nlhe"), ("plo-t", "plo"), ("pine-t", "crazy_pineapple")):
+        assert json.load(open(os.path.join(events, name, "state.json")))["phase"] == "done"
+        assert json.load(open(os.path.join(events, name, "card.json")))["variant"]["name"] == variant
+        assert "Final weighted leaderboard" in open(os.path.join(events, name, "report", "REPORT.md")).read()
+    p = run_referee(args, events)  # the same command again: everything is done, so nothing reruns
+    out, _ = p.communicate(timeout=120)
+    assert p.returncode == 0 and "created" not in out and "running from" not in out, out
+    p = run_referee(["chain", paths[0], paths[0], "--mock", "--no-viz"], events)
+    assert p.wait(60) == 1  # one event twice in a chain is refused

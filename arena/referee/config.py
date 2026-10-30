@@ -2,7 +2,9 @@
 
 ``draw_event`` turns a config into an event card (variant, points table,
 blind schedule, seed, limits) and a team list (model and archetype per
-builder). Missing keys take the defaults in configs/event.example.yaml.
+builder). Missing keys take the defaults in configs/event.example.yaml. A
+config may start with ``extends: <file>`` (relative to itself) to build on
+another config; events save the fully merged config, so they stay reproducible.
 """
 
 from __future__ import annotations
@@ -42,13 +44,23 @@ def _merge(base: dict, over: dict) -> dict:
     return out
 
 
+def _read(path: str, depth: int = 0) -> dict:
+    with open(path) as f:
+        cfg = yaml.safe_load(f) or {}
+    parent = cfg.pop("extends", None)
+    if parent is None:
+        return cfg
+    if depth >= 5:
+        raise ValueError(f"{path}: too many levels of extends")
+    return _merge(_read(os.path.join(os.path.dirname(path), parent), depth + 1), cfg)
+
+
 def load_config(path: str | None) -> dict:
     with open(DEFAULTS_PATH) as f:
         base = yaml.safe_load(f)
     if path is None:
         return base
-    with open(path) as f:
-        return _merge(base, yaml.safe_load(f) or {})
+    return _merge(base, _read(path))
 
 
 def load_archetypes() -> list[dict]:

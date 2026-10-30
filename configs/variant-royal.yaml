@@ -1,0 +1,11 @@
+# Variant testing, event 4 of 4 (2026-10-30): the full-strength field of full-opus.yaml in
+# royal: 20 cards (T to A) and a 4-card board, with the winner-take-most points table.
+# The four run back to back after full-opus-002:
+#   python -m arena.referee chain configs/variant-plo.yaml configs/variant-shortdeck.yaml \
+#       configs/variant-crazy-pineapple.yaml configs/variant-royal.yaml --after full-opus-002
+extends: full-opus.yaml
+event:
+  name: royal-001
+variant: royal
+table:
+  points: winner_take_most

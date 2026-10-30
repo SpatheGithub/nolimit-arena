@@ -78,7 +78,8 @@ def test_profile_matches_the_tables_counts_and_reads_the_zoo(event):
 
     assert fold_to_steal("b01") > fold_to_steal("b02") + 0.15  # the nit gives up its blinds, the maniac doesn't
     assert river_call("b03") > river_call("b01") + 0.3           # pot_odds calls down, the nit doesn't
-    assert pf.usual(bots["b05"]["open_bb"]) == ("2", 1.0)        # the min-raiser always opens to 2 bb
+    size, share = pf.usual(bots["b05"]["open_bb"])  # the min-raiser opens to 2 bb, except all-in when shorter
+    assert size == "2" and share > 0.95             # (a busy machine's timeouts change how often it's short)
 
 
 def test_per_table_points_rebuild_from_the_hand_log(event):
