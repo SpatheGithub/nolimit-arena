@@ -21,6 +21,92 @@
 | 7 | b03 | opus | minimal_robust | 637.9 | 30.2 | 29.3 | 31.3 | 30.4 | 30.7 | 30.0 |
 | 8 | b07 | opus | equity_tables | 632.7 | 30.5 | 30.4 | 28.6 | 30.7 | 30.5 | 30.1 |
 
+## How each bot played
+
+- Every bot finished in the top 3 on 36–39% of tables. What separated them was the heads-up fight for 1st: b06 and b04 won 58–59% of their heads-up finishes, b01 and b05 only 42%. 1st pays 100 points and 2nd pays 60, the biggest step in the points table.
+- The two winners didn't play the most hands; they priced their aggression. Both re-priced steals and all-in re-steals from each opponent's observed fold rates and shoved whenever the price was right. b03 played more hands than either and finished 7th. Most other bots had re-steal rules too, but gated them more tightly with ICM risk penalties or fixed hand caps.
+- Surviving wasn't enough. b07 and b02 had the fewest early exits (7th or 8th on 22–23% of tables) but won only 10–13% of tables. b04 had the most early exits (32%) and still finished 2nd, because it won 17%.
+- Both top bots made their last code change after T3. Identical code moved by up to 3 points per table between tournaments (b02, b04, b08), so single results are mostly noise. b06 winning five tournaments in a row is the one clearly repeatable result.
+
+| Rank | Team | Won | Heads-up won | Top 3 | Last two | VPIP | PFR | AF |
+| -: | :- | -: | -: | -: | -: | -: | -: | -: |
+| 1 | b06 | 17% | 59% | 39% | 24% | 24% | 18% | 3.4 |
+| 2 | b04 | 17% | 58% | 38% | 32% | 25% | 19% | 2.1 |
+| 3 | b02 | 13% | 51% | 38% | 23% | 18% | 14% | 2.4 |
+| 4 | b05 | 10% | 42% | 38% | 24% | 22% | 18% | 2.5 |
+| 5 | b01 | 10% | 42% | 37% | 25% | 20% | 17% | 3.0 |
+| 6 | b08 | 12% | 49% | 37% | 24% | 23% | 17% | 3.3 |
+| 7 | b03 | 11% | 46% | 36% | 27% | 27% | 21% | 3.1 |
+| 8 | b07 | 10% | 49% | 36% | 22% | 23% | 15% | 1.9 |
+
+Pooled over the finished tournaments. Heads-up won: of the tables where the bot was one of the last two, the share it won. Last two: the share of tables where it finished in the last two places. AF: bets and raises per call after the flop.
+
+### 1. b06 (opponent_model)
+
+**Strategy.** Kept running stats on every opponent at the table: how often each folds to a raise, to a re-raise and to a bet, starting from default guesses. Before the flop it opened wider when the players behind fold a lot, and shoved all-in over a single raise with 8–30 big blinds whenever that raiser folded often enough to make it pay. After the flop it bet or folded: value bets, bluffs against players who fold, few calls.
+
+**How it scored.** Won 17% of tables, the most, and 59% of its heads-up finishes. It made 3.4 bets or raises for every call after the flop, the most aggressive in the field, while winning only half its showdowns, so its edge came from making opponents fold. Its builder measured the re-steal shove as its biggest single gain (about +3 points per table) and tested every change against three kinds of field. Its last change came after T3, and that version won T4, T5 and T6.
+
+**Lesson.** Track each opponent's fold rates and shove when they fold too often. The price is variance: it still went out 7th or 8th on 24% of tables, mostly when its own shoves got called.
+
+### 2. b04 (pressure)
+
+**Strategy.** Pressure before the flop: wide opens from late position (48% of hands on the button, 62% in the small blind), adjusted to how often the players behind fold. It shoved all-in with 13 big blinds or less, and re-stole all-in with up to 32, whenever the ICM value counting fold equity was positive.
+
+**How it scored.** The same winning profile as b06: it won 17% of tables and 58% of its heads-up finishes. The price was the most early exits in the field (7th or 8th on 32% of tables), and after the flop it called more than any other bot. Its code didn't change after T3 and scored 34.4, 31.8 and 34.4 points per table in T4–T6.
+
+**Lesson.** Pressure wins tables even with a high bust rate, because 1st pays so much more than surviving. A 3-point drop can be pure noise.
+
+### 3. b02 (free choice)
+
+**Strategy.** The tightest bot: it put money in on 18% of hands. It precomputed ICM tables and decided shoves, calls and re-shoves by ICM-weighted expected points, adjusting its estimate of how often opponents call its shoves to how they actually responded.
+
+**How it scored.** Won T1 and had the second-fewest early exits (23%), but won only 51% of its heads-up finishes, so it took 1st on 13% of tables against 17% for the top two. Its code was identical for T2–T4, yet it slid from 33.8 to 30.6 points per table.
+
+**Lesson.** Tight ICM play buys a safe top 5, not wins.
+
+### 4. b05 (free choice)
+
+**Strategy.** The most engineered bot: its own vectorized hand evaluator (with a 30 MB lookup table), Monte Carlo equity after the flop against opponent ranges narrowed by how they bet, and ICM for all-in decisions.
+
+**How it scored.** Played the most pots after the flop and finished 2nd on 14% of tables, but won only 42% of its heads-up finishes, the lowest, so it took 1st on just 10%. It climbed from 7th after T1 to 4th.
+
+**Lesson.** Precise postflop math didn't turn into wins. Winning heads-up as often as b06 would have been worth about 1.6 points per table, enough for 3rd.
+
+### 5. b01 (free choice)
+
+**Strategy.** Push or fold with 14 big blinds or less, scored in ICM points; Monte Carlo equity after the flop against opponents' ranges; ICM checks on big calls; per-opponent stats on raising, shoving and folding.
+
+**How it scored.** Last after T1 and T2, then climbed to 5th as its patches lifted it from 29.3 points per table in T2 to 32.2 in T4. Like b05, it finished 2nd often (14% of tables, the most) and won only 42% of its heads-up finishes.
+
+**Lesson.** Winning heads-up as often as b06 would have been worth about 1.6 points per table, enough for 3rd. Its notes don't show why it lost heads-up; the hand logs could.
+
+### 6. b08 (free choice)
+
+**Strategy.** Position-based opens and Nash-style push/fold thresholds, widened when few players are left (80% of hands heads-up) and against tight players; an ICM premium on all-in calls, dropped heads-up; aggressive after the flop (3.3 bets or raises per call).
+
+**How it scored.** About 32 points per table in T1–T4 and 3rd overall after T4, then 30.3 and 29.7. Its T6 code was its T4 code restored, so the drop wasn't a bad patch. It won 53% of its showdowns, the best in the field, and missed the top 5 by 3.3 weighted points, well within noise.
+
+**Lesson.** A sound, balanced bot lands on the cut line. Getting safely inside needs an edge that repeats, like b06's.
+
+### 7. b03 (minimal_robust)
+
+**Strategy.** Simple rules with no simulation at decision time (about 0.1 ms per decision): push or fold by chip value, re-shoves with up to 28 big blinds, fixed thresholds for 3-bets and calls, and a safety net that turns any error into a safe action.
+
+**How it scored.** The loosest bot (played 27% of hands, raised 21%). It went out 7th or 8th on 27% of tables and never placed above 5th in a tournament. Its robustness bought nothing, because no bot in this field ever crashed or timed out.
+
+**Lesson.** Robustness is the floor, not an edge. Loose play that isn't priced against specific opponents leaks chips.
+
+### 8. b07 (equity_tables)
+
+**Strategy.** Everything precomputed (about 25 µs per decision): equity tables against ranges, a push/fold chart, and an ICM premium on all-in calls. Its builder estimated it needed about 80% equity to call off its stack with four or more players left.
+
+**How it scored.** The fewest early exits (22%), but also the fewest 2nd places (10%), the joint-fewest wins (10%), and the most passive play after the flop (1.9 bets or raises per call). Its builder warned that its tight all-in calling was "exploitable by bots that shove relentlessly", and the two bots built to apply exactly that pressure finished 1st and 2nd.
+
+**Lesson.** Folding to pressure keeps you alive but hands the table to whoever applies it.
+
+_Analysis by Claude (Opus 5.5) after the event, from each builder's notes (bots/<team>/NOTES.T6.md) and the six tournament summaries._
+
 ## T1 (weight 1)
 
 1,000 tables, 127,458 hands, 20 s on 4 workers; 0 tables reached the hand cap.

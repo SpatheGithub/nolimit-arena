@@ -9,7 +9,10 @@ from collections import defaultdict
 
 from ..tournament.handlog import bot_view
 from ..variants.library import ONE_LINERS
+from ..viz.results import event_results
 from .prompts import points_text
+
+NOTE_FIELDS = (("strategy", "Strategy"), ("outcome", "How it scored"), ("lesson", "Lesson"))
 
 
 def _ci(row: dict) -> str:
@@ -41,6 +44,40 @@ def _group_stats(values: list[float]) -> str:
     return f"{m:.1f} ± {1.96 * se:.1f} (n={n})"
 
 
+def _pct(x) -> str:
+    return "—" if x is None else f"{x:.0%}"
+
+
+def play_md(ev_dir: str) -> list[str]:
+    """How each bot played and placed, with the written analysis when report/strategies.json exists."""
+    res = event_results(ev_dir)
+    if not res["rows"]:
+        return []
+    a = res["analysis"] or {}
+    lines = ["## How each bot played", ""]
+    if a.get("summary"):
+        lines += [f"- {s}" for s in a["summary"]] + [""]
+    lines += ["| Rank | Team | Won | Heads-up won | Top 3 | Last two | VPIP | PFR | AF |",
+              "| -: | :- | -: | -: | -: | -: | -: | -: | -: |"]
+    for r in res["rows"]:
+        af = "—" if r["af"] is None else f"{r['af']:.1f}"
+        lines.append(f"| {r['rank']} | {r['team']} | {_pct(r['won'])} | {_pct(r['hu'])} | {_pct(r['top3'])} | "
+                     f"{_pct(r['bottom2'])} | {_pct(r['vpip'])} | {_pct(r['pfr'])} | {af} |")
+    lines += ["", "Pooled over the finished tournaments. Heads-up won: of the tables where the bot was one of the "
+              "last two, the share it won. Last two: the share of tables where it finished in the last two "
+              "places. AF: bets and raises per call after the flop.", ""]
+    for r in res["rows"]:
+        notes = r["notes"] or {}
+        parts = [f"**{label}.** {notes[k]}" for k, label in NOTE_FIELDS if notes.get(k)]
+        if parts:
+            lines += [f"### {r['rank']}. {r['team']} ({r['archetype'] or 'free choice'})", ""]
+            for part in parts:
+                lines += [part, ""]
+    if a.get("by"):
+        lines += [f"_{a['by']}._", ""]
+    return lines
+
+
 def write_report(ev) -> str:
     card, T = ev.card, ev.card["tournaments"]
     teams = {t.team: t for t in ev.teams}
@@ -67,6 +104,7 @@ def write_report(ev) -> str:
         lines.append(f"| {rank} | {team} | {t.model} | {t.archetype or 'free choice'} | {weighted[team]:.1f} | "
                      + " | ".join(cells) + " |")
     lines.append("")
+    lines += play_md(ev.dir)
     for k in range(1, T + 1):
         s = summaries[k]
         lines += [f"## T{k} (weight {k})", ""]

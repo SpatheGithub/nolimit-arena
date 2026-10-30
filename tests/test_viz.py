@@ -136,3 +136,23 @@ def test_results_rank_weighted_scores_and_top_five_chances(tmp_path):
         assert got["done"] == [1, 2, 3] and got["rows"][0]["team"] == "b06"
     finally:
         server.shutdown()
+
+
+def test_results_show_how_each_team_played_and_the_written_analysis(tmp_path):
+    ev = tmp_path / "events" / "ev3"
+    (ev / "results" / "T1").mkdir(parents=True)
+    (ev / "card.json").write_text(json.dumps({"tournaments": 1}))
+    (ev / "teams.json").write_text(json.dumps([{"team": t, "model": "opus", "archetype": None} for t in ("b01", "b02")]))
+    style = {"hands": 300, "vpip": 0.25, "pfr": 0.2, "post_aggr": 30, "post_calls": 10}
+    entries = [{"name": "b01", "mean": 55, "se": 1.0, "rank": 1, "tables": 100, "places": [60, 30, 5, 5], **style},
+               {"name": "b02", "mean": 40, "se": 1.0, "rank": 2, "tables": 100, "places": [40, 30, 20, 10]}]
+    (ev / "results" / "T1" / "summary.json").write_text(json.dumps({"entries": entries}))
+    b01, b02 = event_results(str(ev))["rows"]
+    assert (b01["won"], b01["second"], b01["top3"], b01["bottom2"], b01["hu"]) == (0.6, 0.3, 0.95, 0.1, 0.667)
+    assert (b01["vpip"], b01["pfr"], b01["af"]) == (0.25, 0.2, 3.0) and b02["af"] is None and b02["notes"] is None
+    (ev / "report").mkdir()
+    (ev / "report" / "strategies.json").write_text(json.dumps(
+        {"by": "Test", "summary": ["Heads-up decided it."], "teams": {"b01": {"strategy": "Shove over raises."}}}))
+    r = event_results(str(ev))  # a new analysis invalidates the cache too
+    assert r["analysis"] == {"by": "Test", "summary": ["Heads-up decided it."]}
+    assert r["rows"][0]["notes"] == {"strategy": "Shove over raises."}

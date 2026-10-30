@@ -295,7 +295,7 @@ def test_mock_event_survives_a_crash_and_resumes(tmp_path):
         summary = json.load(open(os.path.join(events, "crashy", "results", f"T{k}", "summary.json")))
         assert summary["entries"], f"T{k} had no entries"
     report = open(os.path.join(events, "crashy", "report", "REPORT.md")).read()
-    for heading in ("Final weighted leaderboard", "T1 (weight 1)", "T2 (weight 2)", "By archetype",
+    for heading in ("Final weighted leaderboard", "How each bot played", "T1 (weight 1)", "T2 (weight 2)", "By archetype",
                     "Substitutions", "Submission timeline", "Builder failures", "Cost"):
         assert heading in report
     p = run_referee(["status", "crashy"], events)

@@ -10,8 +10,14 @@ don't keep per-table points, so a bootstrap isn't possible, and the draws
 ignore that one team's points are another's loss. They are seeded, so they
 don't flicker between refreshes.
 
-It reads the referee's files only, and redoes the work only when a summary
-changes, so polling it costs the tournaments' workers nothing.
+How each team played, pooled over its tournaments: how often it finished 1st,
+2nd, in the top 3 and in the last two places, the share of its heads-up
+finishes it won, VPIP and PFR weighted by hands, and postflop aggression (bets
+and raises per call). A written analysis in report/strategies.json (a summary,
+and per team its strategy, outcome and lesson) rides along when it exists.
+
+It reads the referee's files only, and redoes the work only when a summary or
+the analysis changes, so polling it costs the tournaments' workers nothing.
 """
 
 from __future__ import annotations
@@ -24,6 +30,8 @@ import numpy as np
 
 CUTOFF = 5  # top 5 per regional advance (docs/OFFICIAL_FORMAT.md)
 DRAWS = 20_000
+ANALYSIS = os.path.join("report", "strategies.json")
+STYLE = ("hands", "vpip", "pfr", "post_aggr", "post_calls")
 _cache: dict[str, tuple[tuple, dict]] = {}
 
 
@@ -35,14 +43,34 @@ def _load(path: str):
         return None
 
 
+def _mtime(path: str) -> float:
+    return os.path.getmtime(path) if os.path.exists(path) else 0.0
+
+
+def _share(places: list[float], tables: float) -> float | None:
+    return round(sum(places) / tables, 3) if places else None
+
+
+def _style(rows: list[dict]) -> dict:
+    """VPIP and PFR weighted by hands, and postflop aggression: bets and raises per call."""
+    out = {}
+    for f in ("vpip", "pfr"):
+        got = [(r[f], r.get("hands") or 1) for r in rows if r.get(f) is not None]
+        out[f] = round(sum(v * n for v, n in got) / sum(n for _, n in got), 3) if got else None
+    calls = sum(r.get("post_calls") or 0 for r in rows)
+    out["af"] = round(sum(r.get("post_aggr") or 0 for r in rows) / calls, 3) if calls else None  # shown to 1 place
+    return out
+
+
 def event_results(ev_dir: str, cutoff: int = CUTOFF) -> dict:
     card = _load(os.path.join(ev_dir, "card.json")) or {}
     total = int(card.get("tournaments") or 0)
     paths = [os.path.join(ev_dir, "results", f"T{k}", "summary.json") for k in range(1, total + 1)]
-    key = (cutoff, *(os.path.getmtime(p) if os.path.exists(p) else 0.0 for p in paths))
+    analysis = os.path.join(ev_dir, ANALYSIS)
+    key = (cutoff, *map(_mtime, paths), _mtime(analysis))
     hit = _cache.get(ev_dir)
     if hit is None or hit[0] != key:
-        hit = (key, _standings(ev_dir, total, paths, cutoff))
+        hit = (key, _standings(ev_dir, total, paths, cutoff, _load(analysis) or {}))
         _cache[ev_dir] = hit
     phase = (_load(os.path.join(ev_dir, "state.json")) or {}).get("phase", "")
     kind, _, k = phase.partition(":")
@@ -50,7 +78,7 @@ def event_results(ev_dir: str, cutoff: int = CUTOFF) -> dict:
     return {**hit[1], "key": "-".join(f"{x:.0f}" for x in key[1:]), "phase": phase, "playing": playing}
 
 
-def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int) -> dict:
+def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int, analysis: dict) -> dict:
     teams = {t["team"]: t for t in _load(os.path.join(ev_dir, "teams.json")) or []}
     done, per = [], {}
     for k, path in enumerate(paths, 1):
@@ -63,10 +91,12 @@ def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int) -> dict:
             tables = e.get("tables") or sum(places) or 1
             per.setdefault(e["name"], {})[k] = {
                 "mean": e["mean"], "se": e.get("se", 0.0), "lo": e.get("lo", e["mean"]), "hi": e.get("hi", e["mean"]),
-                "rank": e.get("rank"), "tables": tables, "places": places}
+                "rank": e.get("rank"), "tables": tables, "places": places, "style": {f: e.get(f) for f in STYLE}}
     names = sorted(per)
+    notes = analysis.get("teams") or {}
     base = {"event": os.path.basename(ev_dir), "total": total, "done": done, "cutoff": cutoff,
-            "absent": [t for t in teams if t not in per], "rows": []}
+            "absent": [t for t in teams if t not in per], "rows": [],
+            "analysis": {k: v for k, v in analysis.items() if k != "teams"} or None}
     if not names:
         return base
     w = np.array([sum(k * r["mean"] for k, r in per[t].items()) for t in names])
@@ -90,8 +120,11 @@ def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int) -> dict:
             "rank": rank, "team": t, "model": info.get("model"), "archetype": info.get("archetype"),
             "weighted": round(float(w[i]), 2), "ci": round(1.96 * float(sd[i]), 2),
             "p_top": round(float(p_top[i]), 3), "p_first": round(float(p_first[i]), 3),
-            "won": round(places[0] / tables, 3) if places else None,
+            "won": _share(places[:1], tables), "second": _share(places[1:2], tables),
+            "top3": _share(places[:3], tables), "bottom2": _share(places[-2:], tables) if width > 3 else None,
+            "hu": round(places[0] / (places[0] + places[1]), 3) if width > 1 and places[0] + places[1] else None,
             "avg_place": round(sum((j + 1) * p for j, p in enumerate(places)) / sum(places), 2) if sum(places) else None,
+            **_style([r["style"] for r in per[t].values()]), "notes": notes.get(t),
             "history": history[t],
             "per": {str(k): {"mean": round(r["mean"], 2), "lo": round(r["lo"], 2), "hi": round(r["hi"], 2),
                              "rank": r["rank"], "tables": r["tables"], "places": [round(p, 1) for p in r["places"]]}
