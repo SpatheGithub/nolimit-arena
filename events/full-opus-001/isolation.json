@@ -1,0 +1,131 @@
+{
+ "passed": true,
+ "checks": [
+  {
+   "check": "settings file loaded (sentinel tool removed)",
+   "ok": true,
+   "detail": "session tools: Bash, Edit, Glob, Grep, Read, Write"
+  },
+  {
+   "check": "can't read the sibling workspace (b02) canary",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-001/b02/.isolation_canary"
+  },
+  {
+   "check": "can't read the events-directory canary",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/full-opus-001/.isolation_canary"
+  },
+  {
+   "check": "can't read other events' workspaces (a canary at the workspaces root)",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces"
+  },
+  {
+   "check": "can't read the operator's Claude Code temp folder",
+   "ok": true,
+   "detail": "/private/tmp/claude-501"
+  },
+  {
+   "check": "can't read the sibling's temp folder (b02)",
+   "ok": true,
+   "detail": "/private/tmp/nl/804c90/b02"
+  },
+  {
+   "check": "can't reach the internet (curl)",
+   "ok": true,
+   "detail": "curl https://example.com"
+  },
+  {
+   "check": "can't reach the internet (Python)",
+   "ok": true,
+   "detail": "urllib https://example.com"
+  },
+  {
+   "check": "can't write outside the workspace (Bash)",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-isolation-probe-bash.txt"
+  },
+  {
+   "check": "can't write outside the workspace (Write tool)",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-isolation-probe-write.txt"
+  },
+  {
+   "check": "can't write into the sibling workspace",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-001/b02/PROBE_FROM_b01.txt"
+  },
+  {
+   "check": "can't write into the operator's Claude Code temp folder",
+   "ok": true,
+   "detail": "/private/tmp/claude-501/nolimit-isolation-probe.txt"
+  },
+  {
+   "check": "positive control: can write inside its own workspace",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-001/b01/INSIDE_PROBE.txt"
+  },
+  {
+   "check": "positive control: the builder venv's Python and numpy work",
+   "ok": true,
+   "detail": "python -c 'import numpy'"
+  },
+  {
+   "check": "positive control: its temp files go to its own temp folder",
+   "ok": true,
+   "detail": "/private/tmp/nl/804c90/b01"
+  }
+ ],
+ "exit": 0,
+ "stderr": "",
+ "elapsed_s": 28.271826028823853,
+ "cost_usd": 0.007616659999999999,
+ "permission_denials": [
+  {
+   "tool_name": "Read",
+   "tool_use_id": "toolu_01RM6V2gt8pv4jhstMLbyy6a",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-001/b02/.isolation_canary"
+   }
+  },
+  {
+   "tool_name": "Read",
+   "tool_use_id": "toolu_012KG3W6MG3Q3HckUzMgc9WW",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/full-opus-001/.isolation_canary"
+   }
+  },
+  {
+   "tool_name": "Write",
+   "tool_use_id": "toolu_01MkbU2TM4Zx83ZdCCn7HC7V",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/nolimit-isolation-probe-write.txt",
+    "content": "probe\n"
+   }
+  }
+ ],
+ "tokens": {
+  "workspace:b01": "CANARY-a8a7747b7895f985",
+  "workspace:b02": "CANARY-e9840369cff05a44",
+  "workspace:b03": "CANARY-b2f8e3dc1bdabeca",
+  "workspace:b04": "CANARY-98c58986e59d41da",
+  "workspace:b05": "CANARY-7cc881320ae033d3",
+  "workspace:b06": "CANARY-556409063f6bd107",
+  "workspace:b07": "CANARY-8a7f0a672f5ab9cf",
+  "workspace:b08": "CANARY-0d3759cb488d8e51",
+  "tmp:b01": "CANARY-72afdf8789936a0d",
+  "tmp:b02": "CANARY-674997aaa1179cb8",
+  "tmp:b03": "CANARY-0ec7b07e91978e12",
+  "tmp:b04": "CANARY-c1d3218b66717b6e",
+  "tmp:b05": "CANARY-bf095d89ee8535ef",
+  "tmp:b06": "CANARY-66795befb9556829",
+  "tmp:b07": "CANARY-55c33bbc7f7cc337",
+  "tmp:b08": "CANARY-024d85af42b4d47d",
+  "events": "CANARY-d539064e455d4e8d",
+  "operator-tmp": "CANARY-c510c5d4c7c8e09e",
+  "workspaces-root": "CANARY-4f72182c94061e97"
+ },
+ "model": "haiku",
+ "log": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/full-opus-001/logs/isolation-b01.jsonl"
+}

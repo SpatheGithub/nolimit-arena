@@ -4,4 +4,15 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .DS_Store
-events/
+# Events: git keeps what explains each event (config, card, teams, state, builder briefs,
+# report, result summaries, and every bot that played with its builder's notes). The bulk
+# stays on this Mac: builder transcripts, the referee's console output, sandbox settings,
+# isolation canaries, raw hand logs (reproducible from bots, config and seed), unplayed
+# submissions and mock events.
+events/mock-*/
+events/*/logs/
+events/*/referee.*
+events/*/settings/
+events/*/submissions/
+events/*/results/*/hands.*
+events/*/.isolation_canary

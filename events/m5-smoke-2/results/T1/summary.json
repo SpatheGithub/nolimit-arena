@@ -1,0 +1,243 @@
+{
+ "meta": {
+  "seed": 6671483749799031847,
+  "iterations": 400,
+  "workers": 4,
+  "tables": 400,
+  "hands": 68043,
+  "capped_tables": 58,
+  "startup_s": 0.32671220880001783,
+  "elapsed_s": 4.68151354091242,
+  "log_bytes": 4983286,
+  "settings": {
+   "spec": {
+    "name": "nlhe",
+    "streets": [
+     {
+      "name": "preflop",
+      "discard": 0,
+      "hole": 2,
+      "board": 0,
+      "bet": true
+     },
+     {
+      "name": "flop",
+      "discard": 0,
+      "hole": 0,
+      "board": 3,
+      "bet": true
+     },
+     {
+      "name": "turn",
+      "discard": 0,
+      "hole": 0,
+      "board": 1,
+      "bet": true
+     },
+     {
+      "name": "river",
+      "discard": 0,
+      "hole": 0,
+      "board": 1,
+      "bet": true
+     }
+    ],
+    "ranks": "23456789TJQKA",
+    "suits": "cdhs",
+    "card_use": {
+     "hole_min": 0,
+     "hole_max": 5
+    },
+    "ranking": {
+     "order": [
+      "high_card",
+      "pair",
+      "two_pair",
+      "trips",
+      "straight",
+      "flush",
+      "full_house",
+      "quads",
+      "straight_flush"
+     ],
+     "ace_low": true
+    },
+    "betting": {
+     "structure": "no_limit",
+     "fl_bets": [],
+     "fl_cap": 4
+    }
+   },
+   "points": [
+    100,
+    60,
+    40,
+    25,
+    15,
+    10,
+    5,
+    0
+   ],
+   "blinds": [
+    [
+     10,
+     20,
+     0
+    ],
+    [
+     20,
+     40,
+     0
+    ],
+    [
+     40,
+     80,
+     0
+    ],
+    [
+     80,
+     160,
+     0
+    ],
+    [
+     160,
+     320,
+     0
+    ],
+    [
+     320,
+     640,
+     0
+    ],
+    [
+     640,
+     1280,
+     0
+    ],
+    [
+     1280,
+     2560,
+     0
+    ]
+   ],
+   "level_hands": 25,
+   "hand_cap": 200,
+   "seats": 8,
+   "starting_stack": 2000,
+   "decision_limit_ms": 1.0,
+   "timing": "thread_cpu",
+   "hang_watchdog_ms": 50,
+   "init_limit_s": 2,
+   "import_limit_s": 30,
+   "native_kill_s": 10.0,
+   "bot_size_limit_mb": 100,
+   "memory_mb": 2048,
+   "hand_logs": true,
+   "rules": ""
+  },
+  "notes": [
+   "memory limit not applied: macOS doesn't enforce RLIMIT_AS"
+  ],
+  "events": [],
+  "crashed_tables": [],
+  "import_problems": {}
+ },
+ "entries": [
+  {
+   "name": "b01",
+   "path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/m5-smoke-2/bots/b01/T1",
+   "tables": 400,
+   "mean": 41.615825,
+   "se": 1.522046499415555,
+   "lo": 38.63266865481949,
+   "hi": 44.59898134518051,
+   "places": [
+    50.0,
+    63.0,
+    74.0,
+    76.0,
+    46.0,
+    25.0,
+    28.0,
+    14.0
+   ],
+   "cap_survivals": 24,
+   "vpip": 0.13956656606304493,
+   "pfr": 0.02733065057008719,
+   "aggression": 6.478048780487805,
+   "wtsd": 0.08507293762575453,
+   "showdown_win": 0.47671840354767187,
+   "hands": 47712,
+   "post_aggr": 3984,
+   "post_calls": 615,
+   "showdowns": 4059,
+   "showdown_wins": 1935,
+   "decisions": 60765,
+   "timeouts": 0,
+   "slow_core_passes": 0,
+   "errors": 0,
+   "illegal": 0,
+   "hangs": 0,
+   "frozen": 0,
+   "init_failures": 0,
+   "import_failures": 0,
+   "observe_errors": 0,
+   "cpu_mean_us": 4.852650654159468,
+   "cpu_p50_us": 10.0,
+   "cpu_p99_us": 25.0,
+   "cpu_max_us": 521.375,
+   "wall_max_us": 914.375,
+   "output": [],
+   "rank": 1,
+   "hash": "7701d306801f18ca643e93287a3c0853cf4a29789615a19306f60df08d7fbf9f"
+  },
+  {
+   "name": "b02",
+   "path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/m5-smoke-2/bots/b02/T1",
+   "tables": 400,
+   "mean": 22.12165,
+   "se": 1.48783235406101,
+   "lo": 19.205552148005165,
+   "hi": 25.037747851994833,
+   "places": [
+    36.0,
+    20.0,
+    26.0,
+    31.0,
+    51.0,
+    66.5,
+    76.0,
+    88.5
+   ],
+   "cap_survivals": 5,
+   "vpip": 0.17203057219582732,
+   "pfr": 0.12381739310059905,
+   "aggression": 0.3733650416171225,
+   "wtsd": 0.13001445982235074,
+   "showdown_win": 0.517318080711789,
+   "hands": 24205,
+   "post_aggr": 314,
+   "post_calls": 841,
+   "showdowns": 3147,
+   "showdown_wins": 1628,
+   "decisions": 36462,
+   "timeouts": 0,
+   "slow_core_passes": 0,
+   "errors": 0,
+   "illegal": 0,
+   "hangs": 0,
+   "frozen": 0,
+   "init_failures": 0,
+   "import_failures": 0,
+   "observe_errors": 0,
+   "cpu_mean_us": 3.7386916241566563,
+   "cpu_p50_us": 10.0,
+   "cpu_p99_us": 25.0,
+   "cpu_max_us": 147.042,
+   "wall_max_us": 582.791,
+   "output": [],
+   "rank": 2,
+   "hash": "b1f38458f6d9c1b270b70ea3ebcd7d40af1cbc37f5df9df8e75f14338c72cb9b"
+  }
+ ]
+}

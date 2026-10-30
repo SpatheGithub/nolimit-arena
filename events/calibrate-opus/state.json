@@ -1,0 +1,172 @@
+{
+ "event": "calibrate-opus",
+ "phase": "done",
+ "created": 1793251515.1160672,
+ "notes": [
+  "variant pool entries not available yet: twist"
+ ],
+ "builder_venv": "/Users/carlmacbookpro/nolimit-workspaces/.venv",
+ "builders": {
+  "b01": {
+   "session_id": "e6fbd603-92df-4ab8-8856-97cb12038876",
+   "pid": 41438,
+   "phase": "build:0",
+   "started": 1793261137.607327,
+   "exit": 0,
+   "launches": 5,
+   "nudges": {
+    "build:0": 4
+   },
+   "ended": 1793261142.187809,
+   "stopped_by": "finished",
+   "cost_usd": 1.3180468,
+   "errors": [],
+   "usage": [
+    0,
+    0.05
+   ],
+   "model": "claude-opus-5-5"
+  },
+  "b02": {
+   "session_id": "436b975b-f6e1-4896-a86c-9bd2cc11e6d4",
+   "pid": 41542,
+   "phase": "build:0",
+   "started": 1793261175.272255,
+   "exit": 0,
+   "launches": 5,
+   "nudges": {
+    "build:0": 4
+   },
+   "stopped_by": "finished",
+   "cost_usd": 1.0058658000000003,
+   "errors": [],
+   "usage": [
+    0,
+    0.05
+   ],
+   "model": "claude-opus-5-5"
+  }
+ },
+ "windows": [
+  {
+   "kind": "build",
+   "k": 0,
+   "start": 1793260320.943496,
+   "end": 1793261220.943496
+  }
+ ],
+ "frozen": {
+  "1": {
+   "b01": {
+    "sid": "004-c2452fa4",
+    "hash": "c2452fa428c76ad40238cecb1b6f05287c45467504873c5063a7c6861f12aaf4",
+    "observed": 1793260950.025604,
+    "timing": {
+     "cpu_p50_us": 25.0,
+     "cpu_p99_us": 160.5,
+     "cpu_max_us": 160.5
+    }
+   },
+   "b02": {
+    "sid": "004-fc7b2166",
+    "hash": "fc7b2166213e0c4d37fdb0abd5f3037801be0e43607388521e60765624e39fb7",
+    "observed": 1793261102.995286,
+    "timing": {
+     "cpu_p50_us": 25.0,
+     "cpu_p99_us": 129.083,
+     "cpu_max_us": 129.083
+    }
+   }
+  }
+ },
+ "tournaments": {
+  "1": {
+   "done": true,
+   "elapsed_s": 7.661120583303273
+  }
+ },
+ "events": [
+  {
+   "time": 1793260959.24049,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 262
+  },
+  {
+   "time": 1793261035.726649,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 185
+  },
+  {
+   "time": 1793261059.1821818,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 162
+  },
+  {
+   "time": 1793261112.6658182,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 108
+  },
+  {
+   "time": 1793261129.953961,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 91
+  },
+  {
+   "time": 1793261137.607934,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 83
+  },
+  {
+   "time": 1793261167.1355479,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 54
+  },
+  {
+   "time": 1793261175.2733161,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 46
+  }
+ ],
+ "mock": false,
+ "time_scale": 1.0,
+ "seen": {
+  "b01": 4,
+  "b02": 5
+ },
+ "validated": {
+  "c2452fa428c76ad40238cecb1b6f05287c45467504873c5063a7c6861f12aaf4": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 25.0,
+    "cpu_p99_us": 160.5,
+    "cpu_max_us": 160.5
+   }
+  },
+  "fc7b2166213e0c4d37fdb0abd5f3037801be0e43607388521e60765624e39fb7": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 25.0,
+    "cpu_p99_us": 129.083,
+    "cpu_max_us": 129.083
+   }
+  }
+ }
+}

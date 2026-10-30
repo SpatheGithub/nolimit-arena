@@ -1,0 +1,165 @@
+# Team notes (b03)
+
+## Approach
+Minimal and robust: rule-based NLHE bot, no simulation at decision time (p99 ~100 µs).
+- `bot/_common.py` + `_common.json`: copied from kit house bots (evaluator `Ranker`, `Spot` parser,
+  safe action builders, `features()` postflop strength 0..1, preflop percentile `pct`).
+- `bot/eqr.json`: precomputed 169x100 table, equity of each preflop class vs top-X% range
+  (range ordered by pct). Built by `tools/eqmat.py` (MC class-vs-class, 400+1600 boards/pair) +
+  `tools/build_eqr.py`.
+- Preflop:
+  - unopened, eff <= 14bb: shove if modeled chip EV > 0.15bb (`shove_ev`: each opponent calls with
+    top `call_width(e_bb)` = 1.6/e_bb (x1.6 heads-up), equity from eqr), else fold/check.
+  - facing a shove / commit-size raise: call if eq vs `shove_width` (2.8/S_bb, x1.3 late) >= pot odds
+    + 0.02 + 0.03*players behind.
+  - facing a normal open with eff <= 28bb: re-shove if shove_ev > 0.5bb and pct <= 0.30.
+  - otherwise v1 rules: open 2.5bb (+1bb/limper) with pct <= OPEN[players behind]; 3-bet pct<=3.5%;
+    call pct <= 9% (or <= 16% if cheap, BB defend <= 30% vs min-raise).
+- Postflop: `features()` strength s; bet 0.65 pot when s >= 0.60 (+0.04 per extra opp); semi-bluff
+  draws 50%; c-bet heads-up flop as preflop raiser; facing bets call by s tiers vs pot odds;
+  raise s >= 0.85.
+- act() wrapped in try/except -> safe default (prints first error once).
+
+## Versions
+- 001-0744e4dc (v1): pct-threshold push/fold + TAG opens + simple postflop.
+- 002-90d5b3f0 (v3): + EV-model shoves (<=14bb), equity-vs-range calls of shoves, re-shove over opens,
+  per-seat PFR/VPIP model, open_mult 1.3, shove3 (calls vs 3-bet shoves by equity).
+- 003-3a682acc (v4+hu_def): + postflop aggression model (aggmod), ICM-required equity for calling
+  all-ins (3-6 alive), bigger value bets with s>=0.85, HU BB defend 45%.
+- v5: + fold-to-bet per seat (ftb): c-bet bluff only if opp folds >= 42%, never vs < 30%; turn stab if >= 60%.
+  ICM limited to <= 5 alive (timing).
+- 004-165c4e12 (v7): v5 + isolation raises over limpers tightened (thr*0.6, max 15%).
+- 006-eb178efe (v9): steal=2: behind<=4; open 50%/70%/100% when P(all behind fold to open) >0.5/0.6/0.72.
+- 005-25275e23 (v8): + fold-to-open stat per seat (fto); late-position (<=3 behind) open threshold widened to 60%/85%
+  when product of behind players' fold-to-open > 0.6/0.75 (prior 0.7 each).
+
+## T1 result (v9, 006): rank 6/8, 30.18 pts. Places 1-8: 121,125,120,88,78,163,155,150.
+- Weakness: early busts (6th-8th in 47% of tables vs 37.5% uniform); field VPIP 19-25%, ours 28%.
+- Winner b02 VPIP 19 / PFR 14 (tightest).
+
+## Patch window before T2
+- Debug copy (versions/dbg) prints the decision that put our stack in when we bust ("BUST" lines).
+  Found leak: calling 3-bet+/multi-raiser all-ins with A9o/KTo (shove3 path blended last raiser's PFR
+  and ignored other committed opponents).
+- 007-6937a1be (v13): deep=0.05 (facing a >30bb-deep shove: no PFR blend, +5% margin) and
+  stackoff=0.10 (postflop, eff>25bb, call >=35% of stack with s<0.85 -> s-0.10).
+  Field v1,v3,nit,v9,v1,v3,nit seed 101: v9 36.0 (bust 44.8%) -> v13 37.0 (bust 43.2%).
+- 008-c2823f19 (v16): m3=1: in raises>=2 all-in spots, no PFR blend, range x0.7 if raises>=3, equity
+  ^(1+0.8*multi) for every other opponent with > 1bb in. Same test: 39.3, bust 38.2% (best).
+- Confirmed seed 303: v16 37.5 (bust 41.0%) vs v13 36.0 (bust 44.7%); no timeouts (max 385us).
+- Next ideas: HU shove range may be too wide (EV model assumes HU caller 2.56/e_bb, Nash ~3.7/e_bb);
+  bust log (versions/dbg) still shows 42o shoves HU at ~12bb. v18 (hu_cw=2.2): 39.9 vs v16 39.3 on seed
+  101 (1st 215 vs 207) but 36.6 vs 37.5 on seed 303 -> net zero; not adopted.
+- bot/ has hu_cw=1.6 (= v16 behaviour).
+- 008 vs field of submissions 001-007 (400 tables, seed 404): 008 35.6 (1st), 007 35.4, 006 33.1,
+  older 28.8-31.1; 008 bust6-8 32.8%. Newer versions rank above older ones (noise +-3.2).
+- Tested, not adopted: cw=2.0 (36.5, same), steal=1 (35.8, worse), blend_bb=18 (identical).
+- One timeout / one hang seen locally under heavy machine load (max 2.6ms); check_bot max ~110-260us.
+
+## T2 result (v16, 008): rank 7/8, 29.32 pts. Places: 104,137,119,90,98,141,162,148 (bust6-8 45%).
+- Same profile as T1: we are the loosest bot (VPIP 28 / PFR 22; field 19-24 / 14-19) and bust too often.
+- Local gains vs my own bots did not transfer: my versions are a poor proxy for the real field.
+
+## Patch window before T3
+- ICM insight (kit/icm.py, standard payouts): an all-in flip for the whole stack with 8 equal stacks needs
+  62% equity (not 50%); bubble factor ~1.3-1.85 at 8 players, 1.1-1.6 at 6, ~1.1-1.3 at 4, ~1.05 at 3.
+  Bot only used exact ICM for <=5 players and only for calls -> took chip-EV-neutral all-ins at 6-8 players.
+- 009-25bf25a4 (v19): icmx=1.0: bubble factor BF = 1 + BF_A[k]*min(1, e/my_stack),
+  BF_A = {8:.65, 7:.55, 6:.45, 5:.33, 4:.2, 3:.06}. Used (a) in need_icm for k>=6 calls:
+  need = BF*cn/(BF*cn + 1 - cn); (b) in shove_ev: loss term x BF for every caller (all k>=3).
+  Local field seed 101: 39.5 (v16 39.3), bust6-8 34.9% (v16 38.2%), top3 48.3% (46.7%).
+- v19 vs 7x v16 (300 tables, seed 111): 33.7 (baseline 31.9), bust6-8 33%, VPIP 23 / PFR 17.
+- Local runs under load show rare single timeouts/hangs (max 1.4-2.6 ms); referee T1/T2: 0 subs, max <0.8 ms.
+- v19 seed 303 (1000 tables): 39.2 vs v16 37.5; bust6-8 33.9% vs 41.0%. Consistent improvement.
+- 009 vs submissions 002-008 (400 tables, seed 505): 32.8 (4th; all 28.6-34.4 within +-3.2 noise);
+  profile: fewer 1sts (10.8%), many 3rd/4th, bust6-8 only 28.7%, VPIP 25 / PFR 18.
+- v20 (icmpost=1: BF also on postflop calls >= 35% of stack): 34.0 vs v19 33.7 same seed (noise);
+  not submitted; code kept with icmpost=0.
+- Next ideas: if T3 still busts >42% -> raise BF_A further or add BF to postflop all-in calls;
+  if we blind out (many 4th-5th) -> lower icmx to ~0.7.
+- Machine is heavily loaded in patch windows: a 1000-table run can take >3 min; keep runs <= 500 tables.
+
+## T3 result (v19, 009): rank 5/8, 31.32 pts (best so far). Places: 106,129,140,147,111,139,130,98.
+- ICM change worked: bust6-8 45% -> 36.7%; VPIP 25 / PFR 20 (in line with field). 1st only 10.6%.
+
+## Patch window before T4 (all vs 7x v19 copies, baseline 31.9; per-table SD ~33 -> 1000 tables SE ~1)
+- v21 icmd=15 (BF scaled down below 15bb): seeds 111/222/333 -> 33.6 / 31.5 / 31.7 (pooled +0.3), busts more.
+- v22 icmpost=1 (BF on postflop calls >=35% stack): 34.6 / 30.3 / 30.5 (pooled -0.5).
+- v23 icmx=1.3: 29.6 (worse) -> icmx=1.0 is about right.
+- v24 open_mult=1.0: 31.2 (no gain).
+- v25 hu_cw=2.2 (tighter HU shoves): 29.5 (worse) -> keep hu_cw=1.6.
+- Calibration: v19 vs 7x v19 on seed 333 = 30.45 (not 31.9). Paired deltas on seed 333:
+  v21 +1.3, v22 +0.1, v23 -0.8, v24 +0.75, v25 -1.0. v21 mean over 3 seeds ~+0.9 (SE ~1.1):
+  -> submitted v21 (see above). Always run the self baseline on the same seed for paired deltas.
+- 010-5eb93394 (v21, icmd=15) submitted for T4 after paired calibration: v19 self baselines
+  seed 111 = 32.68, seed 333 = 30.45 -> v21 paired +0.95 (600 t) and +1.26 (1000 t); more 1sts
+  (91 vs 85, 137 vs 116), slightly more busts. Falls back to v19 by setting icmd=0.
+- 010 vs submissions 003-009 (400 tables, seed 606): 33.3 (1st of 8; 009 31.3; all within +-3);
+  bust6-8 29%, VPIP 25 / PFR 18, max 224 us, 0 subs.
+- Sample hands only cover hands 1-10 of 4 tables: useless for endgame diagnosis.
+
+## T4 result (v21, 010): rank 7/8, 30.41. Places: 103,125,138,135,109,141,133,116 (1st 10.3%, bust 39%).
+- Persistent weakness across T1-T4: 1st only 10-12%, HU win rate ~45% (1st/(1st+2nd)).
+- Leak found: raise_w/call_w blend opponents' observed PFR/VPIP (mostly 8-handed hands) into HU ranges ->
+  HU shove range assumed ~20% instead of >=36% at 10bb -> we call HU shoves far too tight.
+
+## Patch window before T5
+- shmax=P (players): when n_alive <= shmax, observed stats may only widen ranges (raise_w >= prior,
+  call_w factor >= 1). Paired vs 7x v21 seed 111 (baseline v21 33.04): shmax=4 32.38 (HU win 60% but
+  reached HU less), shmax=2 33.17 (HU win 53.6% vs 52.4%).
+- 011-9f78bc28 (v27 = v21 + shmax=2) submitted.
+- v28 = v27 + hu_sw=1.5 (HU: assumed opponent shove width x1.5, i.e. ~5.5/e_bb, near Nash SB range).
+  Paired vs 7x v21: seed 111 33.51 (base 33.04; 1st/2nd 95/73 vs 88/80), seed 222 31.77 (base 31.64;
+  78/67 vs 76/69), seed 333 32.02 (base 31.88; 77/78 vs 75/80). Only HU outcomes change (other places
+  identical), 3/3 seeds positive -> 012-76d710a0 (v28) submitted and kept for T5.
+- v29 (shmax=3 + hu_sw=1.5): seed 111 33.24 vs v28 33.51 -> not adopted (keep floor HU-only).
+- 012 vs house zoo (300 tables, seed 808): 62.2 (1st; nit 44.7), 1st place 40%, bust6-8 4.7%, 0 subs.
+- 012 vs submissions 006-011 (400 tables, seed 707): 34.1 (2nd; all within +-3.2), bust6-8 31%, 0 subs.
+- Next ideas: HU shove side (we assume BB calls 2.56/e_bb; Nash ~3.7/e) - v25 (hu_cw 2.2) was worse vs
+  v19 copies, but those copies call HU too tight (same blend bug). Re-tested: v30 (hu_cw 2.2) vs 7x v28
+  seed 111 = 31.55 vs base 32.91 -> worse again; note hu_cw applies to every SB-vs-BB-only spot.
+  Keep hu_cw=1.6.
+
+## Testing
+- `tools/sim.py --me versions/X ...` = localsim with selectable hero. `tools/mkvar.py name k=v` makes
+  a parameter variant in versions/. `tools/runexp.sh seed tables names...` appends to tools/exp.log.
+- Field used: v1 x3, nit, montecarlo, threshold, maniac; later v1 x2, M0, nit, maniac, montecarlo, pot_odds.
+- NOISE: 400 tables gives +-3.4 (95%); near-identical bots differed by 3 points. 1000 tables +-2.1.
+  Only differences > ~3 points are detectable; most tweaks are below that.
+- Results (seed 31, 1000 tables, mixed field v1,M0,nit,v1,maniac,montecarlo,pot_odds):
+  v3 41.8, v1 43.5, v4 45.9, X1(evpush=0) 45.5, X0(evpush=1) 45.0, v5(+ftb) 46.2, v6(posw=.15) 41.7.
+  v4 vs 7x v3: 33.15 (baseline 31.9).
+- posw (wider assumed calls vs late-position shoves -> tighter late shoves) hurt: reverted to 0.
+- v9 (steal=2) 44.9 (mixed), 35.7 (v3 field) -> submitted as 006-eb178efe.
+- v10 (ftoshove=1) 45.4 (mixed), 34.4 (v3 field): wash, not submitted (code kept, ftoshove=0).
+- v11 (steal=3: behind<=5, open 50/70/100% at pf>0.45/0.55/0.65): 47.9 (mixed), 34.6 (v3 field).
+  Ambiguous (mixed +3, v3 field -1.1); not submitted. Re-test seed 71 v3 field: v11 34.04 vs v9 33.98
+  (tie) -> kept v9.
+- v12 (sdef=1: vs openers with PFR>30% BB defend 50%, cheap-call 28%): 30.5 vs 7x v9 (baseline 31.9)
+  -> no help; not submitted.
+- 006 vs field of earlier submissions 001-005 (400 tables, seed 81): 006 33.67 (1st), others 29.4-32.5;
+  all within +-3.2 noise. Max decision time seen 518 us (busy machine), 0 substitutions.
+- 006 vs house zoo (300 tables, seed 91): 57.3 (1st; nit 46.5, checkfold 37.2, rest <= 28).
+  v1 scored 56.1 vs zoo at build start: zoo no longer separates versions; use v3/mixed fields.
+- bot/ = v28 (icmd=15, shmax=2, hu_sw=1.5); active submission 012-76d710a0.
+- v8 44.8 (mixed), 34.0 (v3 field: steals pay vs TAG fields).
+- v7 44.4 (mixed), 32.8 (v3 field); v7b (cw=1.25) 43.3; v7c (open_mult=1.6) 44.8. All noise-level.
+- Shover/station field (v1,shover,v3,station,v3,nit,shover): ~45-49 for us, shovers ~13, station ~5.
+
+## Key parameters
+See `P` dict at the top of bot/agent.py.
+
+## Known weaknesses
+- Opponent ranges are prior guesses blended with simple per-seat stats (PFR, VPIP, postflop
+  aggression, fold-to-bet, fold-to-open); no showdown-based range learning.
+- Non-all-in 3-bets deep: we fold all but top ~3.5% (exploitable by 3-bet-happy bots).
+- HU deep-stack play is simple (SB opens 55%, BB defends 45% vs small opens).
+- Postflop is category-based; no board-texture-aware bluffing, no river thin value logic.
+
+## Next steps (patch windows)
+- Use tournament results: if we bust early often -> tighten calls; if we blind out -> widen shoves.
+- ftoshove (use fold-to-open to scale assumed shove-call widths): v10 = wash.
+- Steal-defense (sdef) tested: no gain vs 7x v9. Re-shove <=28bb already adapts to loose openers.
+- Re-test steal=3 (v11) on more seeds/fields before adopting; use tournament results to pick field.
+- Consider fold-to-3bet stat to widen 3-bet bluffs vs openers who over-fold.
+- Always run kit/check_bot.py then kit/submit.py; tools/runexp2.sh for 1000-table A/B (noise +-2).

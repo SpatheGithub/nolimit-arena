@@ -1,0 +1,90 @@
+{
+ "passed": true,
+ "checks": [
+  {
+   "check": "settings file loaded (sentinel tool removed)",
+   "ok": true,
+   "detail": "session tools: Bash, Edit, Glob, Grep, Read, Write"
+  },
+  {
+   "check": "can't read the sibling workspace (b02) canary",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/m5-smoke-2/b02/.isolation_canary"
+  },
+  {
+   "check": "can't read the events-directory canary",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/m5-smoke-2/.isolation_canary"
+  },
+  {
+   "check": "can't reach the internet (curl)",
+   "ok": true,
+   "detail": "curl https://example.com"
+  },
+  {
+   "check": "can't reach the internet (Python)",
+   "ok": true,
+   "detail": "urllib https://example.com"
+  },
+  {
+   "check": "can't write outside the workspace (Bash)",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-isolation-probe-bash.txt"
+  },
+  {
+   "check": "can't write outside the workspace (Write tool)",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-isolation-probe-write.txt"
+  },
+  {
+   "check": "can't write into the sibling workspace",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/m5-smoke-2/b02/PROBE_FROM_b01.txt"
+  },
+  {
+   "check": "positive control: can write inside its own workspace",
+   "ok": true,
+   "detail": "/Users/carlmacbookpro/nolimit-workspaces/m5-smoke-2/b01/INSIDE_PROBE.txt"
+  },
+  {
+   "check": "positive control: the builder venv's Python and numpy work",
+   "ok": true,
+   "detail": "python -c 'import numpy'"
+  }
+ ],
+ "exit": 0,
+ "stderr": "",
+ "elapsed_s": 16.808738946914673,
+ "cost_usd": 0.004271420000000001,
+ "permission_denials": [
+  {
+   "tool_name": "Read",
+   "tool_use_id": "toolu_01WExUoPMaYcSejkkW27VmK4",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/nolimit-workspaces/m5-smoke-2/b02/.isolation_canary"
+   }
+  },
+  {
+   "tool_name": "Read",
+   "tool_use_id": "toolu_01NCH1CffFy1ZBaTXPFAEfkM",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/m5-smoke-2/.isolation_canary"
+   }
+  },
+  {
+   "tool_name": "Write",
+   "tool_use_id": "toolu_018x6ZoNZHkFiqT44zTE6Z2p",
+   "tool_input": {
+    "file_path": "/Users/carlmacbookpro/nolimit-isolation-probe-write.txt",
+    "content": "probe"
+   }
+  }
+ ],
+ "tokens": {
+  "workspace:b01": "CANARY-30e7bf05e00dc95e",
+  "workspace:b02": "CANARY-1c2ffe4e01ff8f01",
+  "events": "CANARY-026110002e853ae6"
+ },
+ "model": "haiku",
+ "log": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/m5-smoke-2/logs/isolation-b01.jsonl"
+}

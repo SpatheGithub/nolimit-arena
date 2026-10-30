@@ -1,0 +1,337 @@
+{
+ "event": "m5-smoke-2",
+ "phase": "done",
+ "created": 1793248549.988241,
+ "notes": [
+  "variant pool entries not available yet: twist"
+ ],
+ "builder_venv": "/Users/carlmacbookpro/nolimit-workspaces/.venv",
+ "builders": {
+  "b01": {
+   "session_id": "d4fc1f06-b160-4385-b46e-696198fb1705",
+   "pid": 26187,
+   "phase": "build:0",
+   "started": 1793248772.548765,
+   "exit": 0,
+   "launches": 18,
+   "nudges": {
+    "build:0": 17
+   },
+   "stopped_by": "finished",
+   "cost_usd": 0.24408470000000007,
+   "errors": [],
+   "usage": [
+    0.63,
+    0.65
+   ]
+  },
+  "b02": {
+   "session_id": "c4ae3e33-4dcf-4377-990b-ab2bd946fa47",
+   "pid": 26213,
+   "phase": "build:0",
+   "started": 1793248775.5979168,
+   "exit": 0,
+   "launches": 16,
+   "nudges": {
+    "build:0": 15
+   },
+   "stopped_by": "finished",
+   "cost_usd": 0.1770782,
+   "errors": [],
+   "usage": [
+    0.63,
+    0.65
+   ]
+  }
+ },
+ "windows": [
+  {
+   "kind": "build",
+   "k": 0,
+   "start": 1793248581.110178,
+   "end": 1793248821.110178
+  }
+ ],
+ "frozen": {
+  "1": {
+   "b01": {
+    "sid": "001-7701d306",
+    "hash": "7701d306801f18ca643e93287a3c0853cf4a29789615a19306f60df08d7fbf9f",
+    "observed": 1793248602.1180182,
+    "timing": {
+     "cpu_p50_us": 10.0,
+     "cpu_p99_us": 39.042,
+     "cpu_max_us": 39.042
+    }
+   },
+   "b02": {
+    "sid": "002-b1f38458",
+    "hash": "b1f38458f6d9c1b270b70ea3ebcd7d40af1cbc37f5df9df8e75f14338c72cb9b",
+    "observed": 1793248722.3576162,
+    "timing": {
+     "cpu_p50_us": 10.0,
+     "cpu_p99_us": 55.833,
+     "cpu_max_us": 55.833
+    }
+   }
+  }
+ },
+ "tournaments": {
+  "1": {
+   "done": true,
+   "elapsed_s": 4.68151354091242
+  }
+ },
+ "events": [
+  {
+   "time": 1793248602.124845,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 219
+  },
+  {
+   "time": 1793248631.914766,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 189
+  },
+  {
+   "time": 1793248660.7163148,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 160
+  },
+  {
+   "time": 1793248685.9828491,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 135
+  },
+  {
+   "time": 1793248691.5501719,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 130
+  },
+  {
+   "time": 1793248696.097766,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 125
+  },
+  {
+   "time": 1793248700.650717,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 120
+  },
+  {
+   "time": 1793248726.411158,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 95
+  },
+  {
+   "time": 1793248726.417471,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 95
+  },
+  {
+   "time": 1793248730.9795651,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 90
+  },
+  {
+   "time": 1793248730.984929,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 90
+  },
+  {
+   "time": 1793248735.034967,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 86
+  },
+  {
+   "time": 1793248736.0538912,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 85
+  },
+  {
+   "time": 1793248738.58397,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 83
+  },
+  {
+   "time": 1793248740.6051881,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 81
+  },
+  {
+   "time": 1793248742.632622,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 78
+  },
+  {
+   "time": 1793248745.1653771,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 76
+  },
+  {
+   "time": 1793248746.180934,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 75
+  },
+  {
+   "time": 1793248749.220563,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 72
+  },
+  {
+   "time": 1793248749.7299352,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 71
+  },
+  {
+   "time": 1793248753.270696,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 68
+  },
+  {
+   "time": 1793248753.780519,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 67
+  },
+  {
+   "time": 1793248756.817406,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 64
+  },
+  {
+   "time": 1793248758.333496,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 63
+  },
+  {
+   "time": 1793248760.3626618,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 61
+  },
+  {
+   "time": 1793248762.9026518,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 58
+  },
+  {
+   "time": 1793248763.91521,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 57
+  },
+  {
+   "time": 1793248767.4672158,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 54
+  },
+  {
+   "time": 1793248767.473402,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 54
+  },
+  {
+   "time": 1793248771.530915,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 50
+  },
+  {
+   "time": 1793248772.5505762,
+   "kind": "nudged",
+   "team": "b01",
+   "window": "build:0",
+   "left_s": 49
+  },
+  {
+   "time": 1793248775.599427,
+   "kind": "nudged",
+   "team": "b02",
+   "window": "build:0",
+   "left_s": 46
+  }
+ ],
+ "mock": false,
+ "time_scale": 1.0,
+ "seen": {
+  "b01": 1,
+  "b02": 3
+ },
+ "validated": {
+  "b1f38458f6d9c1b270b70ea3ebcd7d40af1cbc37f5df9df8e75f14338c72cb9b": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 10.0,
+    "cpu_p99_us": 55.833,
+    "cpu_max_us": 55.833
+   }
+  },
+  "7701d306801f18ca643e93287a3c0853cf4a29789615a19306f60df08d7fbf9f": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 10.0,
+    "cpu_p99_us": 39.042,
+    "cpu_max_us": 39.042
+   }
+  }
+ }
+}

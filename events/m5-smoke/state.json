@@ -1,0 +1,102 @@
+{
+ "event": "m5-smoke",
+ "phase": "done",
+ "created": 1793247884.497191,
+ "notes": [
+  "variant pool entries not available yet: twist"
+ ],
+ "builder_venv": "/Users/carlmacbookpro/nolimit-workspaces/.venv",
+ "builders": {
+  "b01": {
+   "session_id": "806dca56-d333-445d-a595-ec076323f5dc",
+   "pid": 23950,
+   "phase": "build:0",
+   "started": 1793248024.930088,
+   "exit": 0,
+   "cost_usd": 0.0935209,
+   "errors": [],
+   "usage": [
+    0.56,
+    0.56
+   ]
+  },
+  "b02": {
+   "session_id": "c4af588d-9794-4a9d-bd21-f61440d93786",
+   "pid": 23971,
+   "phase": "build:0",
+   "started": 1793248026.940738,
+   "exit": 0,
+   "cost_usd": 0.075138,
+   "errors": [],
+   "usage": [
+    0.56,
+    0.57
+   ]
+  }
+ },
+ "windows": [
+  {
+   "kind": "build",
+   "k": 0,
+   "start": 1793248024.147407,
+   "end": 1793248264.147407
+  }
+ ],
+ "frozen": {
+  "1": {
+   "b01": {
+    "sid": "001-4a1def16",
+    "hash": "4a1def168f05c5b21a08d6610d0581d23108552b4254f326506d37e661e2c805",
+    "observed": 1793248043.608844,
+    "timing": {
+     "cpu_p50_us": 10.0,
+     "cpu_p99_us": 49.292,
+     "cpu_max_us": 49.292
+    }
+   },
+   "b02": {
+    "sid": "001-15a1292c",
+    "hash": "15a1292c61344aa3c5944cdba86c5e92dfa45af5ae277b211825133de39af78f",
+    "observed": 1793248043.610367,
+    "timing": {
+     "cpu_p50_us": 25.0,
+     "cpu_p99_us": 100.0,
+     "cpu_max_us": 172.167
+    }
+   }
+  }
+ },
+ "tournaments": {
+  "1": {
+   "done": true,
+   "elapsed_s": 7.684107541106641
+  }
+ },
+ "events": [],
+ "mock": false,
+ "time_scale": 1.0,
+ "seen": {
+  "b01": 1,
+  "b02": 1
+ },
+ "validated": {
+  "4a1def168f05c5b21a08d6610d0581d23108552b4254f326506d37e661e2c805": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 10.0,
+    "cpu_p99_us": 49.292,
+    "cpu_max_us": 49.292
+   }
+  },
+  "15a1292c61344aa3c5944cdba86c5e92dfa45af5ae277b211825133de39af78f": {
+   "ok": true,
+   "reasons": [],
+   "timing": {
+    "cpu_p50_us": 25.0,
+    "cpu_p99_us": 100.0,
+    "cpu_max_us": 172.167
+   }
+  }
+ }
+}

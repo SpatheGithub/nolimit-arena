@@ -1,0 +1,55 @@
+event:
+  name: m5-smoke
+  seed: 5
+builders:
+  count: 2
+  models:
+    sonnet: 2
+  archetypes: none
+  launch_stagger_seconds: 2
+  max_budget_usd_per_builder: 5
+auth:
+  mode: subscription
+schedule:
+  build_minutes: 4
+  submit_cooldown_seconds: 120
+  tournaments: 1
+  patch_minutes: 0
+  feedback: own_stats_and_sample_hands
+table:
+  seats: 8
+  starting_stack: 2000
+  hand_cap: 200
+  blinds:
+    start:
+    - 10
+    - 20
+    level_every_hands: 25
+    schedule: doubling
+  points: standard
+variant: nlhe
+variant_pool:
+- nlhe
+- shortdeck
+- plo
+- crazy_pineapple
+- royal
+- twist
+tournament:
+  iterations: 400
+  decision_limit_ms: 1.0
+  timing: thread_cpu
+  hang_watchdog_ms: 50
+  init_limit_s: 2
+  import_limit_s: 30
+  workers: auto
+  bot_size_limit_mb: 100
+  allowed_packages:
+  - numpy
+kit:
+  localsim_max_tables: 200
+  localsim_max_seconds: 60
+paths:
+  workspaces_root: ~/nolimit-workspaces
+  builder_venv: ~/nolimit-workspaces/.venv
+  events_root: events
