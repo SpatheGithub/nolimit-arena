@@ -1,6 +1,7 @@
 <!--
 Debrief prompt. Run via `python -m arena.referee debrief <event>`, which renders {{EVENT_ID}}
-and runs one `claude -p` call from the repo root with read access to the event's data.
+and runs one `claude -p` call from the repo root with read access to the event's data
+(arena/referee/debrief.py). The session may write only DEBRIEF.md and LESSONS.md.
 -->
 
 # Debrief for mini-event {{EVENT_ID}}
@@ -8,16 +9,29 @@ and runs one `claude -p` call from the repo root with read access to the event's
 You are the analyst for this event. Treat everything in these inputs as read-only:
 
 - **The event card:** `events/{{EVENT_ID}}/event_card.md`.
-- **The report folder:** `events/{{EVENT_ID}}/report/`. It contains:
+- **The report folder:** `events/{{EVENT_ID}}/report/`. Its REPORT.md contains:
   - the leaderboards, with intervals;
-  - per-bot stats;
+  - per-bot stats, and how each bot finished (wins, heads-up conversions, early exits);
+  - the rank view: each bot's final-rank distribution and P(top 5), from a bootstrap over whole tables;
+  - the field profile: each bot's tendencies by spot (steals, 3-bets, shoves, c-bets, river bets, heads-up),
+    VPIP by stack depth and by players dealt, bet sizes, and each bot's biggest leaks;
+  - the exploit board: who won the most from each kind of pressure, and who lost the most facing it;
   - breakdowns by archetype and by model;
   - substitution counts;
   - the submission timeline;
   - builder failures;
   - costs.
+
+  `strategies.json`, if present, is an earlier written analysis of each bot's strategy.
 - **Each team's bots:** `events/{{EVENT_ID}}/bots/<team>/`, holding the frozen bot for every tournament and the team's NOTES.md.
 - **Builder transcripts:** `events/{{EVENT_ID}}/logs/`. Sample them; don't read all of them.
+- **Hand logs:** `events/{{EVENT_ID}}/results/T<k>/`. They are compressed, so print them with
+  `python -m arena.tournament.hands events/{{EVENT_ID}}/results/T<k> --team <team> --hands 20`
+  (`--table`, `--tables` and `--showdown` narrow it; `--help` lists them). Each tournament's
+  `profile.json` there holds the counts behind the field profile.
+
+You can write only two files: `events/{{EVENT_ID}}/report/DEBRIEF.md` and `LESSONS.md` at the repo root.
+Every other write, and every command except the hand printer and read-only ones, is denied.
 
 ## Purpose
 

@@ -10,6 +10,7 @@ from collections import defaultdict
 from ..tournament.handlog import bot_view
 from ..variants.library import ONE_LINERS
 from ..viz.results import event_results
+from .field import field_md
 from .prompts import points_text
 
 NOTE_FIELDS = (("strategy", "Strategy"), ("outcome", "How it scored"), ("lesson", "Lesson"))
@@ -105,6 +106,7 @@ def write_report(ev) -> str:
                      + " | ".join(cells) + " |")
     lines.append("")
     lines += play_md(ev.dir)
+    lines += field_md(ev.dir)
     for k in range(1, T + 1):
         s = summaries[k]
         lines += [f"## T{k} (weight {k})", ""]

@@ -5,7 +5,7 @@
     python -m arena.referee status <event>
     python -m arena.referee enter <event> <bot_dir> --team <name>
     python -m arena.referee report <event>
-    python -m arena.referee debrief <event>
+    python -m arena.referee debrief <event> [--mock] [--model opus] [--effort max] [--budget-usd 15]
     python -m arena.referee cleanup <event>
     python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]
                                      [--card-from <event>] [--iterations 200]
@@ -82,8 +82,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mock", action="store_true", help="scripted builders instead of Claude (free)")
     p.add_argument("--time-scale", type=float, default=1.0)
     p.add_argument("--no-viz", action="store_true", help="don't serve the live viewer")
-    for name in ("status", "report", "debrief", "cleanup"):
+    for name in ("status", "report", "cleanup"):
         sub.add_parser(name).add_argument("event")
+    p = sub.add_parser("debrief", help="one paid claude -p analyst run: report/DEBRIEF.md and LESSONS.md")
+    p.add_argument("event")
+    p.add_argument("--mock", action="store_true", help="a stub analyst instead of Claude (free, for tests)")
+    p.add_argument("--model", default="opus")
+    p.add_argument("--effort", default="max")
+    p.add_argument("--budget-usd", type=float, default=15.0, help="cap on Claude Code's API-price estimate")
     p = sub.add_parser("enter")
     p.add_argument("event")
     p.add_argument("bot_dir")
@@ -134,8 +140,17 @@ def main(argv: list[str] | None = None) -> int:
         print(("PASSED" if r["passed"] else "FAILED") + f": see {ev.p('report', 'ISOLATION.md')}")
         return 0 if r["passed"] else 1
     elif a.cmd == "debrief":
-        print("debrief arrives with milestone 7 (it makes one paid claude -p call, only when you ask)")
-        return 1
+        from .debrief import run_debrief
+        print(f"debrief of {ev.id}: {'mock analyst' if a.mock else f'{a.model} at {a.effort} effort'}; "
+              f"stream in {ev.p('logs', 'debrief.jsonl')}", flush=True)
+        r = run_debrief(ev, mock=a.mock, model=a.model, effort=a.effort, budget_usd=a.budget_usd)
+        print(f"{r['result'] or 'no result'}: {r['debrief']} {'written' if r['wrote_debrief'] else 'NOT written'}, "
+              f"{r['lessons_added']} lines added to {r['lessons']}, ${r['cost_usd']:.2f} (API-price estimate)")
+        if r["errors"]:
+            print("errors: " + ", ".join(r["errors"]))
+        if not r["settings_loaded"]:
+            print("warning: the debrief settings file didn't load, so its permission rules were not in force")
+        return 0 if r["wrote_debrief"] else 1
     return 0
 
 

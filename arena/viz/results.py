@@ -3,12 +3,15 @@
 Per finished tournament: each team's points per table (mean, 95% interval,
 rank), its finishing places and the share of tables it won. Over the event so
 far: the weighted score (1·T1 + 2·T2 + ...), its 95% interval, the rank after
-each tournament, and each team's chance of finishing first and of making the
-regional cut (top 5 advance). Those chances come from normal draws around each
-team's weighted score, using each tournament's standard error: the summaries
-don't keep per-table points, so a bootstrap isn't possible, and the draws
-ignore that one team's points are another's loss. They are seeded, so they
-don't flicker between refreshes.
+each tournament, and each team's chance of every final rank, of finishing
+first and of making the regional cut (top 5 advance). Those chances come from
+a bootstrap over whole tables (results/T<k>/tables.json, rebuilt from the hand
+log for tournaments played before it existed): each resample redraws every
+finished tournament's tables with replacement, so one team's points stay
+another's loss. Without the tables or a hand log to rebuild them from, they
+fall back to normal draws around each team's weighted score, using each
+tournament's standard error. Draws are seeded, so they don't flicker between
+refreshes.
 
 How each team played, pooled over its tournaments: how often it finished 1st,
 2nd, in the top 3 and in the last two places, the share of its heads-up
@@ -16,8 +19,9 @@ finishes it won, VPIP and PFR weighted by hands, and postflop aggression (bets
 and raises per call). A written analysis in report/strategies.json (a summary,
 and per team its strategy, outcome and lesson) rides along when it exists.
 
-It reads the referee's files only, and redoes the work only when a summary or
-the analysis changes, so polling it costs the tournaments' workers nothing.
+It reads the referee's files only, and redoes the work only when a summary,
+the tables or the analysis changes, so polling it costs the tournaments'
+workers nothing.
 """
 
 from __future__ import annotations
@@ -28,8 +32,11 @@ import os
 
 import numpy as np
 
+from ..tournament.tables import FILE as TABLES, load as load_tables
+
 CUTOFF = 5  # top 5 per regional advance (docs/OFFICIAL_FORMAT.md)
-DRAWS = 20_000
+DRAWS = 20_000  # normal draws, when there are no tables to resample
+BOOT = 2_000    # bootstrap resamples of the tables
 ANALYSIS = os.path.join("report", "strategies.json")
 STYLE = ("hands", "vpip", "pfr", "post_aggr", "post_calls")
 _cache: dict[str, tuple[tuple, dict]] = {}
@@ -67,7 +74,8 @@ def event_results(ev_dir: str, cutoff: int = CUTOFF) -> dict:
     total = int(card.get("tournaments") or 0)
     paths = [os.path.join(ev_dir, "results", f"T{k}", "summary.json") for k in range(1, total + 1)]
     analysis = os.path.join(ev_dir, ANALYSIS)
-    key = (cutoff, *map(_mtime, paths), _mtime(analysis))
+    tabs = [os.path.join(os.path.dirname(p), TABLES) for p in paths]
+    key = (cutoff, *map(_mtime, paths), *map(_mtime, tabs), _mtime(analysis))
     hit = _cache.get(ev_dir)
     if hit is None or hit[0] != key:
         hit = (key, _standings(ev_dir, total, paths, cutoff, _load(analysis) or {}))
@@ -76,6 +84,32 @@ def event_results(ev_dir: str, cutoff: int = CUTOFF) -> dict:
     kind, _, k = phase.partition(":")
     playing = int(k) if kind in ("freeze", "tournament") and k.isdigit() else None
     return {**hit[1], "key": "-".join(f"{x:.0f}" for x in key[1:]), "phase": phase, "playing": playing}
+
+
+def _draws(ev_dir: str, names: list[str], done: list[int], w: np.ndarray, sd: np.ndarray) -> tuple[np.ndarray, str]:
+    """Weighted-score draws, one row per draw and one column per team: a bootstrap over
+    whole tables when every finished tournament has them, else normal draws around ``w``."""
+    col = {t: j for j, t in enumerate(names)}
+    rng = np.random.default_rng(0)
+    total = np.zeros((BOOT, len(names)))
+    for k in done:
+        got = load_tables(os.path.join(ev_dir, "results", f"T{k}"))
+        if not got or not got["tables"]:
+            return np.random.default_rng(0).normal(w, sd, size=(DRAWS, len(names))), "normal"
+        cols = [col.get(name) for name in got["entries"]]
+        pts = np.zeros((len(got["tables"]), len(names)))
+        seated = np.zeros_like(pts)
+        for r, (_, entries, fillers, points) in enumerate(got["tables"]):
+            for e, filler, p in zip(entries, fillers, points):
+                if not filler and cols[e] is not None:
+                    pts[r, cols[e]] += p
+                    seated[r, cols[e]] += 1
+        n, played = len(pts), seated.sum(0)
+        weights = rng.multinomial(n, np.full(n, 1 / n), size=BOOT)
+        sums, counts = weights @ pts, weights @ seated
+        observed = np.divide(pts.sum(0), played, out=np.zeros(len(names)), where=played > 0)
+        total += k * np.where(counts > 0, sums / np.maximum(counts, 1), observed) * (played > 0)
+    return total, "bootstrap"
 
 
 def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int, analysis: dict) -> dict:
@@ -101,9 +135,11 @@ def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int, analysis:
         return base
     w = np.array([sum(k * r["mean"] for k, r in per[t].items()) for t in names])
     sd = np.array([math.sqrt(sum((k * r["se"]) ** 2 for k, r in per[t].items())) for t in names])
-    draws = np.random.default_rng(0).normal(w, sd, size=(DRAWS, len(names)))
+    draws, base["rank_method"] = _draws(ev_dir, names, done, w, sd)
     pos = (-draws).argsort(1).argsort(1)  # 0 = first place in that draw
     p_top, p_first = (pos < cutoff).mean(0), (pos == 0).mean(0)
+    spread = draws.std(0) if base["rank_method"] == "bootstrap" else sd
+    rank_pct = np.percentile(pos + 1, [5, 50, 95], axis=0, method="nearest")
     history = {t: [] for t in names}  # rank after each finished tournament, by the weighted score so far
     for k in done:
         so_far = {t: sum(j * r["mean"] for j, r in per[t].items() if j <= k) for t in names if min(per[t]) <= k}
@@ -118,8 +154,10 @@ def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int, analysis:
         info = teams.get(t, {})
         base["rows"].append({
             "rank": rank, "team": t, "model": info.get("model"), "archetype": info.get("archetype"),
-            "weighted": round(float(w[i]), 2), "ci": round(1.96 * float(sd[i]), 2),
+            "weighted": round(float(w[i]), 2), "ci": round(1.96 * float(spread[i]), 2),
             "p_top": round(float(p_top[i]), 3), "p_first": round(float(p_first[i]), 3),
+            "ranks": [round(float((pos[:, i] == r).mean()), 3) for r in range(len(names))],
+            "rank_range": [int(rank_pct[0, i]), int(rank_pct[2, i])], "rank_median": int(rank_pct[1, i]),
             "won": _share(places[:1], tables), "second": _share(places[1:2], tables),
             "top3": _share(places[:3], tables), "bottom2": _share(places[-2:], tables) if width > 3 else None,
             "hu": round(places[0] / (places[0] + places[1]), 3) if width > 1 and places[0] + places[1] else None,

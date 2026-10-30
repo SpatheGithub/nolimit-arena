@@ -452,6 +452,35 @@ From `claude --help` (2.1.300) and the model-config docs page:
 - **Pooling:** `gauntlet --field event:<a>,<b>` plays both fields together with no builders. What pooling loses: in-event adaptation happened against 7 opponents, not 15.
 - **During a run** the event uses each window until the limit, so the operator's own use in that time comes out of the builders' share.
 
+### Debrief invocation (2026-10-30)
+
+`python -m arena.referee debrief <event>` (`arena/referee/debrief.py`) runs one analyst session from the repo root. Checked against `claude --help` on 2.1.300 (still the installed version) and against [PM] and [PERM]; no model session was started.
+
+- **`--permission-mode dontAsk`** (in help):
+  - It auto-denies every call that would otherwise prompt.
+  - It still runs file reads inside the working directories, read-only Bash commands, and calls that match `permissions.allow` rules [PM].
+  - [PM] doesn't say outright that edits need a rule. Edits prompt in Manual mode, so without one they are denied.
+- **Allow rules, in the `--settings` file:**
+  - `Edit(./events/<id>/report/DEBRIEF.md)` and `Edit(./LESSONS.md)`. Edit rules cover every built-in tool that edits files, Write included [PERM].
+  - Anchoring [PERM]: `./path` is relative to the current directory (the repo root here), `//path` is absolute, and a single leading `/` anchors at the settings file. A bare file name matches at any depth (gitignore semantics), hence the `./`.
+  - `Bash(python -m arena.tournament.hands *)`. A trailing ` *` also matches the bare command, and `:*` is an equivalent form. A compound command needs every part allowed, so `... && rm x` stays denied [PERM].
+- **Why a settings file, not `--allowedTools`:** help calls the flag a "comma or space-separated list". Rules with paths go in the settings file, where a space can't split one.
+- **`--restricted`** (in help):
+  - Bash runs only because `--tools` names it.
+  - The file tools are confined to the working directories.
+  - User, project and local settings files are ignored.
+  - `--bare` replaces it in `api_key` mode, as for builders.
+- **The rest is as for builders:**
+  - `--tools` with the `NotebookEdit` sentinel, which the settings deny; the init event shows whether the settings loaded.
+  - `--strict-mcp-config` with an empty `--mcp-config`, `--disable-slash-commands` and `--permission-prompts none`.
+  - `stream-json` with `--verbose`, `--session-id`, `--effort max` and `--max-budget-usd 15`.
+  - `builder_env`'s clean environment: no CLAUDE.md, auto memory, background tasks or claude.ai connectors.
+- **Not yet run against a real session.** Untested:
+  - that `dontAsk` denies a write outside the two files;
+  - that `--restricted` with Bash in `--tools` runs the hand printer.
+
+  The first real debrief's `logs/debrief.jsonl` shows both, as `permission_denied` events and tool results.
+
 ## Open questions
 
 - **The org's terms.** Does the education Enterprise contract bill by usage or by seat? Does it allow automated, parallel `claude -p` use on one seat? Does the org push server-managed settings (forced plugins, hooks or permission rules) that would override builder settings?

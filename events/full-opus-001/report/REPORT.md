@@ -107,6 +107,126 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 
 _Analysis by Claude (Opus 5.5) after the event, from each builder's notes (bots/<team>/NOTES.T6.md) and the six tournament summaries._
 
+## Rank view
+
+Each bot's final rank across 2,000 bootstrap resamples of whole tables: every resample redraws each finished tournament's tables with replacement, so one bot's points stay another's loss. The top 5 at a regional advance, so P(top 5) matters more than the mean. 90% range: the 5th to 95th percentile of the rank.
+
+| Bot | Weighted (95% CI) | P(1st) | P(top 5) | Median rank | 90% range | P(1) | P(2) | P(3) | P(4) | P(5) | P(6) | P(7) | P(8) |
+| :- | -: | -: | -: | -: | :- | -: | -: | -: | -: | -: | -: | -: | -: |
+| b06 | 733.9 ± 20.8 | 97% | 100% | 1 | 1–1 | 97% | 3% | · | · | · | · | · | · |
+| b04 | 702.4 ± 20.8 | 3% | 100% | 2 | 2–3 | 3% | 88% | 9% | · | · | · | · | · |
+| b02 | 681.9 ± 18.5 | 0% | 100% | 3 | 2–4 | · | 9% | 84% | 6% | 1% | · | · | · |
+| b05 | 657.6 ± 18.1 | 0% | 72% | 5 | 4–7 | · | · | 3% | 39% | 30% | 21% | 5% | 2% |
+| b01 | 656.0 ± 18.1 | 0% | 66% | 5 | 4–7 | · | · | 3% | 32% | 32% | 25% | 7% | 1% |
+| b08 | 652.7 ± 18.3 | 0% | 52% | 5 | 4–7 | · | · | 2% | 21% | 29% | 34% | 11% | 3% |
+| b03 | 638.0 ± 17.9 | 0% | 7% | 7 | 5–8 | · | · | · | 1% | 5% | 14% | 47% | 32% |
+| b07 | 632.7 ± 17.2 | 0% | 2% | 8 | 6–8 | · | · | · | · | 2% | 6% | 30% | 61% |
+
+## Field profile
+
+How the bots played, from the hand logs of T1–T6 (4,626,883 bot-hands; every version a team entered, pooled). The field row pools every bot's decisions, with the lowest and highest bot in brackets. Most per-bot rates rest on thousands of decisions, so their 95% intervals are within about ±3 points; † marks a rate on fewer than 300.
+
+Spots: a *steal* is a first-in raise from the cutoff, button or small blind with 3+ players dealt; *folds to a steal* counts the blinds facing one. A *3-bet* re-raises a single open; *folds to a 3-bet* is the opener facing one. A *shove* is a preflop all-in raise. A *c-bet* is the preflop raiser betting the flop when checked to. *Calls a river bet* is the first river decision facing a bet. Showdown rates count hands that saw the flop.
+
+### Preflop
+
+| Bot | VPIP | PFR | Steals | Folds to a steal | 3-bets an open | Folds to a 3-bet | Calls a shove |
+| :- | -: | -: | -: | -: | -: | -: | -: |
+| b06 | 24% | 18% | 45% | 72% | 8% | 69% | 21% |
+| b04 | 25% | 19% | 44% | 63% | 10% | 79% | 15% |
+| b02 | 19% | 14% | 37% | 79% | 5% | 73% | 19% |
+| b05 | 22% | 18% | 47% | 81% | 3% | 85% | 15% |
+| b01 | 20% | 17% | 45% | 80% | 4% | 85% | 12% |
+| b08 | 23% | 17% | 45% | 76% | 5% | 82% | 16% |
+| b03 | 27% | 21% | 60% | 81% | 4% | 84% | 13% |
+| b07 | 23% | 15% | 36% | 74% | 4% | 74% | 17% |
+| **Field** | 23% (19%–27%) | 17% (14%–21%) | 45% (36%–60%) | 76% (63%–81%) | 5% (3%–10%) | 80% (69%–85%) | 16% (12%–21%) |
+
+### After the flop, and heads-up
+
+| Bot | C-bets | Folds to a c-bet | Calls a river bet | Went to showdown | Won at showdown | Raises first in heads-up | Folds to a heads-up raise |
+| :- | -: | -: | -: | -: | -: | -: | -: |
+| b06 | 70% | 77% | 35% | 51% | 49% | 86% | 64% |
+| b04 | 75% | 64% | 48% | 49% | 46% | 76% | 32% |
+| b02 | 64% | 74% | 42% | 57% | 52% | 69% | 65% |
+| b05 | 69% | 45% | 39% | 48% | 48% | 76% | 67% |
+| b01 | 68% | 60% | 41% | 52% | 46% | 66% | 66% |
+| b08 | 84% | 67% | 34% | 47% | 52% | 73% | 45% |
+| b03 | 61% | 78% | 35% | 45% | 51% | 89% | 66% |
+| b07 | 41% | 75% | 29% | 45% | 50% | 65% | 57% |
+| **Field** | 67% (41%–84%) | 69% (45%–78%) | 38% (29%–48%) | 49% (45%–57%) | 49% (46%–52%) | 75% (65%–89%) | 58% (32%–67%) |
+
+### VPIP by stack and by players dealt
+
+Hypotheses 2 and 8 in docs/FIELD_STUDY.md: a bot that plays the same hands at every stack depth, or as wide heads-up as eight-handed, keeps one set of thresholds. Stack: the bot's own chips at the start of the hand.
+
+| Bot | <10 bb | 10–20 bb | 20–40 bb | 40+ bb | 7–8 dealt | 5–6 dealt | 3–4 dealt | Heads-up |
+| :- | -: | -: | -: | -: | -: | -: | -: | -: |
+| b06 | 51% | 32% | 25% | 18% | 18% | 28% | 42% | 57% |
+| b04 | 37% | 23% | 31% | 22% | 22% | 28% | 38% | 62% |
+| b02 | 37% | 23% | 18% | 15% | 14% | 20% | 35% | 48% |
+| b05 | 22% | 20% | 25% | 22% | 20% | 22% | 30% | 51% |
+| b01 | 29% | 20% | 22% | 18% | 17% | 22% | 32% | 48% |
+| b08 | 34% | 26% | 25% | 19% | 19% | 25% | 38% | 57% |
+| b03 | 26% | 26% | 31% | 26% | 24% | 28% | 37% | 57% |
+| b07 | 25% | 18% | 23% | 24% | 22% | 21% | 29% | 48% |
+| **Field** | 29% (22%–51%) | 23% (18%–32%) | 25% (18%–31%) | 21% (15%–26%) | 20% (14%–24%) | 24% (20%–28%) | 35% (29%–42%) | 54% (48%–62%) |
+
+### Calls a shove, by own stack
+
+| Bot | <10 bb | 10–20 bb | 20–40 bb | 40+ bb |
+| :- | -: | -: | -: | -: |
+| b06 | 41% | 21% | 17% | 17% |
+| b04 | 25% | 14% | 11% | 12% |
+| b02 | 22% | 19% | 15% | 23% |
+| b05 | 18% | 13% | 13% | 15% |
+| b01 | 13% | 13% | 10% | 14% |
+| b08 | 29% | 14% | 10% | 12% |
+| b03 | 17% | 11% | 11% | 12% |
+| b07 | 24% | 13% | 14% | 18% |
+| **Field** | 22% (13%–41%) | 15% (11%–21%) | 13% (10%–17%) | 15% (12%–23%) |
+
+### Bet sizes
+
+Hypothesis 10: one fixed size is a pattern opponents can read. Opens are first-in raises, in big blinds; bets are after the flop with nothing to call, as a share of the pot.
+
+| Bot | Usual open | Opens at it | Usual bet | Bets at it |
+| :- | -: | -: | -: | -: |
+| b06 | 2.5 bb | 50% | 50% pot | 43% |
+| b04 | 2.5 bb | 62% | 60% pot | 46% |
+| b02 | 2.5 bb | 42% | 50% pot | 73% |
+| b05 | 2.5 bb | 52% | 60% pot | 55% |
+| b01 | 2.5 bb | 54% | 50% pot | 30% |
+| b08 | 2.5 bb | 46% | 50% pot | 43% |
+| b03 | 2.5 bb | 83% | 50% pot | 40% |
+| b07 | 2.5 bb | 66% | 60% pot | 35% |
+
+### Biggest leaks per bot
+
+A leak is a spot where the bot's result as the player facing the action falls below the rest of the field's average result in the same spot, in big blinds per 100 hands it played (± a 95% interval). The result counts the whole hand, so it also carries how the bot got to the spot. Chips aren't points, but the bots that leak chips to pressure bust first.
+
+- **b06**: facing a shove: -0.2 ± 0.5 bb/100 (calls 21% against 15%) — within noise; heads-up vs a raise: -0.1 ± 0.2 bb/100 (calls 23% against 31%) — within noise.
+- **b04**: facing a river bet: -4.2 ± 0.7 bb/100 (folds 46% against 60%); facing a c-bet: -2.4 ± 0.7 bb/100 (calls 35% against 28%).
+- **b02**: facing a steal: -0.4 ± 0.4 bb/100 (folds 79% against 75%).
+- **b05**: facing an open: -1.0 ± 0.8 bb/100 (folds 89% against 86%); facing a steal: -0.7 ± 0.5 bb/100 (folds 81% against 75%).
+- **b01**: facing a river bet: -2.3 ± 0.6 bb/100 (folds 54% against 58%); facing a steal: -0.7 ± 0.4 bb/100 (folds 80% against 75%).
+- **b08**: facing a shove: -0.4 ± 0.5 bb/100 (raises 2% against 1%) — within noise; heads-up vs a raise: -0.2 ± 0.2 bb/100 (calls 53% against 26%) — within noise.
+- **b03**: facing a shove: -1.7 ± 0.5 bb/100 (calls 13% against 16%); facing a steal: -1.4 ± 0.4 bb/100 (folds 81% against 75%).
+- **b07**: facing a steal: -2.5 ± 0.5 bb/100 (calls 23% against 16%); facing a shove: -0.7 ± 0.5 bb/100 (calls 17% against 16%).
+
+## Exploit board
+
+Which bots made money from each kind of pressure, and which lost the most facing it. *Field folds*: how often the bot facing that aggression folded, pooled (lowest and highest bot in brackets). *Won most from it*: big blinds per 100 hands won in the hands where the bot applied it, and how often everyone folded at once. *Lost most facing it*: the leak measure above for that spot.
+
+| Aggression | Field folds | Won most from it (bb/100) | Lost most facing it (bb/100 vs field) |
+| :- | -: | :- | :- |
+| Steal | 76% (63%–81%) | b06 +6.1 (all fold 63%), b03 +5.9 (all fold 55%) | b07 -2.5, b03 -1.4 |
+| 3-bet | 80% (69%–85%) | b04 +8.9 (all fold 70%), b06 +7.0 (all fold 82%) | b04 -1.0, b01 -0.5 |
+| Preflop shove | 83% (79%–88%) | b04 +8.5 (all fold 70%), b06 +6.9 (all fold 74%) | b03 -1.7, b07 -0.7 |
+| Heads-up raise | 58% (32%–67%) | b06 +0.3 (all fold 59%), b07 +0.3 (all fold 60%) | b05 -0.3, b08 -0.2 |
+| C-bet | 69% (45%–78%) | b08 +6.2 (all fold 65%), b03 +5.9 (all fold 66%) | b04 -2.4, b07 -0.6 |
+| River bet | 58% (46%–67%) | b03 +6.5 (all fold 58%), b07 +6.1 (all fold 53%) | b04 -4.2, b01 -2.3 |
+
 ## T1 (weight 1)
 
 1,000 tables, 127,458 hands, 20 s on 4 workers; 0 tables reached the hand cap.

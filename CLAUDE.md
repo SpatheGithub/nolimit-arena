@@ -42,7 +42,9 @@ Keep this list current as commands are added.
 - `python -m arena.referee new configs/event.yaml [--name ID]` (also builds the builders' own Python in `~/nolimit-workspaces/.python` and `.venv` on first use; `configs/full-opus.yaml` is the full-strength field)
 - `python -m arena.referee isolation <event-id>` (scripted Haiku run with real builder settings; spends a fraction of a cent)
 - `python -m arena.referee run <event-id> [--mock] [--time-scale X] [--no-viz]` (serves the live viewer on 127.0.0.1:8766; waits out plan usage limits and resumes)
-- `python -m arena.referee status|report|debrief|cleanup <event-id>`
+- `python -m arena.referee status|report|cleanup <event-id>` (the report's rank view, field profile and exploit board come from the hand logs; profiles are cached in `results/T<k>/profile.json`)
+- `python -m arena.referee debrief <event-id> [--mock]` (one paid `claude -p` analyst run, only when the user asks; writes `report/DEBRIEF.md` and `LESSONS.md`; `--mock` is free)
+- `python -m arena.tournament.hands events/<id>/results/T<k> [--team NAME] [--hands 20]` (prints a tournament's compressed hand logs as text)
 - `python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]` (scores a bot against archived builder bots; no builders, no spend)
 - `python -m arena.house_bots.sync [--check]` (refreshes each house bot's copies of `_common` and `_strategy`; builders' kits get only `KIT_BOTS`)
 
