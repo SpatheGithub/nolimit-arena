@@ -115,7 +115,14 @@ def assign_teams(cfg: dict, rng: random.Random) -> list[Team]:
     rng.shuffle(models)
     archetypes: list[str | None] = [None] * n
     mode = b.get("archetypes", "none")
-    if mode in ("assign_half", "assign_all"):
+    if isinstance(mode, list):  # exactly these ids, to random builders; the rest choose freely
+        unknown = sorted(set(mode) - {a["id"] for a in load_archetypes()})
+        if unknown or len(mode) > n:
+            raise ValueError(f"builders.archetypes: unknown ids {unknown}" if unknown
+                             else f"builders.archetypes lists {len(mode)} ids for {n} builders")
+        for slot, a in zip(rng.sample(range(n), len(mode)), mode):
+            archetypes[slot] = a
+    elif mode in ("assign_half", "assign_all"):
         ids = [a["id"] for a in load_archetypes()]
         k = n if mode == "assign_all" else n // 2
         chosen = rng.sample(range(n), k)

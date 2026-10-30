@@ -6,7 +6,7 @@
       submissions/<team>/<sid>/ + index.jsonl             snapshots as the referee observed them
       bots/<team>/T<k>/                                   frozen bot per tournament
       entered/<name>/                                     external bots (`enter`)
-      results/T<k>/summary.json + hand logs               per tournament
+      results/T<k>/summary.json tables.json + hand logs   per tournament (tables.json: every table's points)
       report/                                             REPORT.md (and DEBRIEF.md)
 
 Phases: created -> build -> (freeze:k -> tournament:k -> patch:k) ... -> report -> done.
@@ -30,6 +30,7 @@ import yaml
 
 from ..runner.loader import bot_hash
 from ..tournament.card import save_card, settings_from_card
+from ..tournament import tables
 from ..tournament.play import derive
 from ..tournament.pool import Entry
 from ..tournament.tournament import default_workers, run_tournament
@@ -40,6 +41,9 @@ from .builders import (TMP_ROOT, builder_env, builder_tmpdir, claude_command, en
                        mock_command, python_base_prefix, read_stream, team_settings, write_settings)
 from .config import REPO, Team, draw_event, load_config
 from .prompts import render_brief, render_nudge, render_patch
+# Imported at start, not when first needed: a referee runs for days, and it should keep the code it
+# started with even while the repo is being edited.
+from .report import write_feedback, write_report
 from .workspace import build_workspace, write_clock
 
 EVENTS_ROOT = os.environ.get("ARENA_EVENTS_ROOT") or os.path.join(REPO, "events")
@@ -165,7 +169,6 @@ class Event:
             elif kind == "tournament":
                 self._tournament(k)
             elif kind == "report":
-                from .report import write_report
                 write_report(self)
                 self.state["phase"] = "done"
                 self.save()
@@ -518,6 +521,8 @@ class Event:
                                     workers=0 if workers == "auto" else int(workers), log_dir=out_dir)
         with open(os.path.join(out_dir, "summary.json"), "w") as f:
             json.dump({"meta": result["meta"], "entries": result["entries"]}, f, indent=1, default=str)
+        if result.get("tables"):
+            tables.write(out_dir, [e.name for e in entries], tables.rows(result["tables"]))
         self.state["tournaments"][str(k)] = {"done": True, "elapsed_s": result["meta"].get("elapsed_s")}
         if k < self.card["tournaments"]:
             self._feedback_and_patch(k)
@@ -544,7 +549,6 @@ class Event:
         return out
 
     def _feedback_and_patch(self, k: int) -> None:
-        from .report import write_feedback
         summary = self.summary(k)
         start = time.time()
         end = start + self.card["patch_minutes"] * 60 * self.scale

@@ -21,7 +21,7 @@ import arena.referee.event as event_module
 from arena.referee.commands import archived_bots, cleanup
 from arena.referee.config import Team, assign_teams, draw_event, load_config
 from arena.referee.event import Event, Paused
-from arena.referee.prompts import render_nudge
+from arena.referee.prompts import render_brief, render_nudge
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TMP_ROOT = "/private/tmp/nlt"  # short like the real one, and apart from it so tests never touch a live event
@@ -60,6 +60,19 @@ def test_draw_is_deterministic_and_checks_counts(tmp_path):
     with pytest.raises(ValueError, match="sum to 3"):
         assign_teams(cfg, random.Random(0))
 
+
+
+def test_listed_directions_go_to_random_builders_as_starting_ideas(tmp_path):
+    cfg = load_config(config(tmp_path, "d2", builders={"archetypes": ["math_core", "math_core", "model_pressure"]}))
+    card, teams, _ = draw_event(cfg)
+    assert sorted(t.archetype for t in teams if t.archetype) == ["math_core", "math_core", "model_pressure"]
+    brief = render_brief(card, "b01", 8, "12:00", "model_pressure")
+    assert "## A starting idea" in brief and "not a limit" in brief and "Opponent model with pressure" in brief
+    free = render_brief(card, "b02", 8, "12:00", None)
+    assert "Anything that wins is allowed" in free and "starting idea" not in free
+    cfg["builders"]["archetypes"] = ["no_such_idea"]
+    with pytest.raises(ValueError, match="unknown ids"):
+        assign_teams(cfg, random.Random(0))
 
 def test_builder_command_and_settings(tmp_path):
     teams = [Team(f"b0{i}", "sonnet", None, str(tmp_path / f"ws/b0{i}")) for i in (1, 2, 3)]
@@ -294,6 +307,14 @@ def test_mock_event_survives_a_crash_and_resumes(tmp_path):
     for k in (1, 2):
         summary = json.load(open(os.path.join(events, "crashy", "results", f"T{k}", "summary.json")))
         assert summary["entries"], f"T{k} had no entries"
+        tables = json.load(open(os.path.join(events, "crashy", "results", f"T{k}", "tables.json")))
+        names, got = tables["entries"], {}
+        for _, seats, fillers, points in tables["tables"]:  # every table's points add up to the summary's means
+            for e, f, pts in zip(seats, fillers, points):
+                if not f:
+                    got.setdefault(names[e], []).append(pts)
+        for r in summary["entries"]:
+            assert abs(sum(got[r["name"]]) / len(got[r["name"]]) - r["mean"]) < 1e-3
     report = open(os.path.join(events, "crashy", "report", "REPORT.md")).read()
     for heading in ("Final weighted leaderboard", "How each bot played", "T1 (weight 1)", "T2 (weight 2)", "By archetype",
                     "Substitutions", "Submission timeline", "Builder failures", "Cost"):

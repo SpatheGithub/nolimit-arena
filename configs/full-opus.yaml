@@ -10,6 +10,10 @@
 #   python -m arena.referee gauntlet <bot_dir> --field event:full-opus-001,full-opus-002
 #
 #   python -m arena.referee new configs/full-opus.yaml            # then --name full-opus-002
+#
+# Event 1 gave half its builders a single-idea direction ("build your bot around this idea") and
+# they each played one idea. From event 2 every brief asks for a complete bot that does anything
+# that wins, and the directions are blends offered as starting points.
 #   python -m arena.referee isolation full-opus-001     # a fraction of a cent, Haiku
 #   python -m arena.referee run full-opus-001           # in screen; live viewer on 127.0.0.1:8766
 event:
@@ -20,7 +24,7 @@ builders:
   models:
     opus: 8
   effort: max
-  archetypes: assign_half       # half get a starting direction, so the field isn't 8 copies of one design
+  archetypes: [math_core, math_core, model_pressure, model_pressure]   # 4 random builders; the other 4 choose freely
   launch_stagger_seconds: 5
 auth:
   mode: subscription

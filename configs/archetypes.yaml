@@ -1,6 +1,16 @@
-# Strategy directions handed to some builders so the field isn't a monoculture.
-# builders.archetypes = assign_half gives these to half the builders (round-robin, shuffled);
-# the rest choose freely. Reports compare archetypes against each other and against free choice.
+# Starting ideas handed to some builders so the field isn't a monoculture.
+# builders.archetypes = assign_half gives these to half the builders (round-robin, shuffled),
+# assign_all to everyone, and a list of ids gives exactly those to random builders; the rest
+# choose freely. Every brief says an idea is a starting point, not a limit: builders combine
+# whatever wins. Reports compare archetypes against each other and against free choice.
+
+- id: math_core
+  name: Math-first complete bot
+  description: Start from exact math. Precompute equities for today's variant into tables, use pot odds, play ICM-aware push/fold when stacks are short, and price every decision in tournament points rather than chips. Then build out from that core with whatever else your tests show wins.
+
+- id: model_pressure
+  name: Opponent model with pressure
+  description: Read each seat during the table (how often it enters pots, raises, folds to raises and re-raises, and calls bets down) and let the read pick your spots. Put pressure on the seats that fold too much, with steals, re-raises and all-ins priced by their observed fold rates, and value-bet the ones that call too much. Pair it with sound hand-strength and stack-depth play so the bot is strong before it has a read.
 
 - id: tag_buckets
   name: Tight-aggressive with strength buckets

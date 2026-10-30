@@ -11,9 +11,10 @@ Placeholders:
   {{COOLDOWN_SECONDS}} {{LOCALSIM_CAP}} {{ARCHETYPE_BLOCK}}
 
 {{ARCHETYPE_BLOCK}} is empty for free-choice builders, otherwise:
-  ## Assigned approach
-  Build your bot around this idea: **{{ARCHETYPE_NAME}}**: {{ARCHETYPE_DESCRIPTION}}
-  The assignment gives you a starting direction. You may add anything that improves your score.
+  ## A starting idea
+  Here is an idea to start from: **{{ARCHETYPE_NAME}}**: {{ARCHETYPE_DESCRIPTION}}
+  It's a suggestion, not a limit. Your goal is still the highest score: combine it with anything
+  else that wins, and drop any part of it that your tests show costs points.
 -->
 
 # Team {{TEAM_ID}}: build brief
@@ -23,6 +24,16 @@ You are team {{TEAM_ID}}, one of {{N_TEAMS}} independent teams in a practice pok
 Every team writes a Python poker bot from scratch against a hard deadline. The bots then play thousands of eight-bot sit-and-go tournaments against each other.
 
 Your goal is the highest score. Code quality, elegance and explanations don't count.
+
+Anything that wins is allowed. Aim for a complete bot rather than one trick. Strong bots combine several things:
+
+- sound hand-strength and equity math;
+- the points table and ICM;
+- push/fold play when stacks are short;
+- reads on individual opponents during a table;
+- well-chosen aggression.
+
+They also play every stage of a table well, from deep stacks to the last few players.
 
 You work alone and unattended. Nobody will answer questions or approve anything. Make reasonable assumptions, note them in NOTES.md, and keep moving.
 

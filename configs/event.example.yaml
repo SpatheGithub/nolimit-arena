@@ -13,7 +13,7 @@ builders:
     opus: 40                    # Opus 5.5 on CLI 2.1.280+; the report records what each session ran
   effort: max                   # --effort low|medium|high|xhigh|max on every run; null = the model's default
                                 # (medium on Opus 5.5). Strong builders are the point: weak ones hide leaks.
-  archetypes: assign_half       # none | assign_half | assign_all  (configs/archetypes.yaml)
+  archetypes: assign_half       # none | assign_half | assign_all | [id, ...]  (configs/archetypes.yaml)
   launch_stagger_seconds: 2     # spreads out the initial burst of API requests
   max_budget_usd_per_builder: null   # passed as --max-budget-usd when set
 

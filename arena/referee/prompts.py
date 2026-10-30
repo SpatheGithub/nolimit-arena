@@ -45,8 +45,9 @@ def render_brief(card: dict, team: str, n_teams: int, deadline_human: str, arche
     block = ""
     if archetype:
         a = next(x for x in load_archetypes() if x["id"] == archetype)
-        block = (f"## Assigned approach\n\nBuild your bot around this idea: **{a['name']}**: {a['description']}\n"
-                 "The assignment gives you a starting direction. You may add anything that improves your score.\n")
+        block = (f"## A starting idea\n\nHere is an idea to start from: **{a['name']}**: {a['description']}\n\n"
+                 "It's a suggestion, not a limit. Your goal is still the highest score: combine it with anything "
+                 "else that wins, and drop any part of it that your tests show costs points.\n")
     sb, bb, _ = card["blinds"][0]
     return render(_read("BUILDER_BRIEF.md"), {
         "TEAM_ID": team, "N_TEAMS": n_teams, "N_OTHERS": n_teams - 1, "BUILD_MINUTES": f"{card['build_minutes']:g}",
