@@ -1,0 +1,50 @@
+[
+ {
+  "team": "b01",
+  "model": "opus",
+  "archetype": null,
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b01"
+ },
+ {
+  "team": "b02",
+  "model": "opus",
+  "archetype": null,
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b02"
+ },
+ {
+  "team": "b03",
+  "model": "opus",
+  "archetype": "math_core",
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b03"
+ },
+ {
+  "team": "b04",
+  "model": "opus",
+  "archetype": "model_pressure",
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b04"
+ },
+ {
+  "team": "b05",
+  "model": "opus",
+  "archetype": null,
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b05"
+ },
+ {
+  "team": "b06",
+  "model": "opus",
+  "archetype": "math_core",
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b06"
+ },
+ {
+  "team": "b07",
+  "model": "opus",
+  "archetype": "model_pressure",
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b07"
+ },
+ {
+  "team": "b08",
+  "model": "opus",
+  "archetype": null,
+  "workspace": "/Users/carlmacbookpro/nolimit-workspaces/full-opus-002/b08"
+ }
+]
