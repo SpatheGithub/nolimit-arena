@@ -148,6 +148,10 @@ aside h2 { margin: 0; padding: 10px 14px; font-size: 12px; letter-spacing: .12em
 .pcard .chips b { color: var(--ink); font-weight: 500; }
 .pcard p { margin: 0; font-size: 12.5px; line-height: 1.5; }
 .pcard p i { display: block; font-style: normal; color: var(--dim); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; }
+.pcard details { font-size: 12px; color: var(--dim); }
+.pcard details summary { cursor: pointer; }
+.pcard details pre { margin: 6px 0 0; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  color: var(--ink); font: 11.5px/1.45 ui-monospace, Menlo, monospace; }
 </style>
 </head>
 <body>
@@ -737,6 +741,12 @@ function renderPlay(r) {
     if (row.vpip != null) chip("VPIP/PFR", `${Math.round(row.vpip * 100)}/${Math.round((row.pfr ?? 0) * 100)}`, "Share of hands it put money in voluntarily / raised before the flop");
     if (row.af != null) chip("AF", row.af.toFixed(1), "Bets and raises per call after the flop");
     card.append(hd, chips);
+    if (row.own) {  // what the builder wrote about its own bot
+      const p = el("p"); p.append(el("i", "", "In its builder's words"), row.own.summary); card.append(p);
+      const more = el("details");
+      more.append(el("summary", "", `${row.own.heading} section of ${row.own.file}`), el("pre", "", row.own.text));
+      card.append(more);
+    }
     for (const [k, label] of NOTE_FIELDS) {
       const text = row.notes && row.notes[k];
       if (!text) continue;

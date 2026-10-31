@@ -112,14 +112,16 @@ In short:
 
 ## NOTES.md and your final message
 
-Update `NOTES.md` as you go:
+Start `NOTES.md` with a `## Strategy` section. It describes the bot you have accepted, in plain words, and you rewrite it whenever you submit a new version. The referee collects it with your bot when each tournament starts, and it's how your approach is reported. Use these bold labels:
 
-- your approach;
-- key parameters;
-- known weaknesses;
-- what you would try next.
+- **Summary:** two or three sentences on how the bot decides and why it should score well;
+- **Before the flop:** which hands it plays from which seats and stack depths, and how it sizes;
+- **After the flop:** how it values hands and draws, and when it bets, bluffs and calls;
+- **Short stacks and the points table:** push/fold, ICM, and how places change its risk-taking;
+- **Opponents:** whether and how it reads the other seats during a table;
+- **Last change:** what changed in this version, and the test result that justified it.
 
-If there are patch rounds later, this file is your memory.
+Below that section, keep the rest of your notes as you go: key parameters, test results, known weaknesses and what you would try next. If there are patch rounds later, this file is your memory.
 
 When the clock is nearly out:
 

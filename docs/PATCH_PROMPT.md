@@ -36,5 +36,5 @@ Use the whole window: once a fix is in, test for the next weakness. If you end y
 
 When the clock is nearly out:
 
-1. Update NOTES.md.
+1. Update NOTES.md, starting with its `## Strategy` section for the bot that will play T{{K_NEXT}}. Under bold labels, give a short **Summary**, then **Before the flop**, **After the flop**, **Short stacks and the points table**, **Opponents**, and the **Last change** with the test result behind it. The referee collects this section with your bot.
 2. End with at most five lines: what you changed and your active submission id.

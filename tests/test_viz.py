@@ -156,3 +156,31 @@ def test_results_show_how_each_team_played_and_the_written_analysis(tmp_path):
     r = event_results(str(ev))  # a new analysis invalidates the cache too
     assert r["analysis"] == {"by": "Test", "summary": ["Heads-up decided it."]}
     assert r["rows"][0]["notes"] == {"strategy": "Shove over raises."}
+
+
+def test_results_carry_what_each_builder_wrote_about_its_bot(tmp_path):
+    from arena.referee.report import play_md
+    ev = tmp_path / "events" / "ev4"
+    (ev / "results" / "T1").mkdir(parents=True)
+    (ev / "card.json").write_text(json.dumps({"tournaments": 1}))
+    teams = ("b01", "b02", "b03")
+    (ev / "teams.json").write_text(json.dumps([{"team": t, "model": "opus", "archetype": None} for t in teams]))
+    entries = [{"name": t, "mean": 40 - 5 * i, "se": 1.0, "rank": i + 1, "tables": 10, "places": [5, 5, 0, 0]}
+               for i, t in enumerate(teams)]
+    (ev / "results" / "T1" / "summary.json").write_text(json.dumps({"entries": entries}))
+    notes = {"b01": "# Notes\n\n## Strategy\n\n- **Summary:** Shove over openers who fold too much.\n"
+                    "  It tracks fold rates.\n- **Before the flop:** tight.\n\n## Testing\nlots of runs",
+             "b02": "# Notes\n\n## Approach\nEquity tables and pot odds.\n\nMore detail.\n\n## History\nv1"}
+    for team, text in notes.items():
+        (ev / "bots" / team).mkdir(parents=True)
+        (ev / "bots" / team / "NOTES.T1.md").write_text("# older notes")
+        (ev / "bots" / team / "NOTES.T2.md").write_text(text)  # the latest collected notes count
+    rows = {r["team"]: r for r in event_results(str(ev))["rows"]}
+    own = rows["b01"]["own"]
+    assert own["summary"] == "Shove over openers who fold too much. It tracks fold rates."
+    assert (own["heading"], own["file"]) == ("Strategy", "NOTES.T2.md") and "lots of runs" not in own["text"]
+    assert rows["b02"]["own"]["summary"] == "Equity tables and pot odds." and rows["b02"]["own"]["heading"] == "Approach"
+    assert rows["b03"]["own"] is None
+    report = "\n".join(play_md(str(ev)))
+    assert "**In its builder's words** (Strategy in `bots/b01/NOTES.T2.md`). Shove over openers" in report
+

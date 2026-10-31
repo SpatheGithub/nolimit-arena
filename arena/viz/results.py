@@ -17,7 +17,10 @@ How each team played, pooled over its tournaments: how often it finished 1st,
 2nd, in the top 3 and in the last two places, the share of its heads-up
 finishes it won, VPIP and PFR weighted by hands, and postflop aggression (bets
 and raises per call). A written analysis in report/strategies.json (a summary,
-and per team its strategy, outcome and lesson) rides along when it exists.
+and per team its strategy, outcome and lesson) rides along when it exists, and
+so does what each builder wrote about its own bot: the "Strategy" section of
+the latest NOTES the referee collected (or "Approach", in events from before
+the brief asked for Strategy), with its summary line pulled out.
 
 It reads the referee's files only, and redoes the work only when a summary,
 the tables or the analysis changes, so polling it costs the tournaments'
@@ -29,6 +32,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 
 import numpy as np
 
@@ -39,6 +43,8 @@ DRAWS = 20_000  # normal draws, when there are no tables to resample
 BOOT = 2_000    # bootstrap resamples of the tables
 ANALYSIS = os.path.join("report", "strategies.json")
 STYLE = ("hands", "vpip", "pfr", "post_aggr", "post_calls")
+NOTES_FILE = re.compile(r"NOTES\.T(\d+)\.md")
+OWN_HEADINGS = ("strategy", "approach")  # the brief asks for Strategy; events before 2026-10-31 wrote Approach
 _cache: dict[str, tuple[tuple, dict]] = {}
 
 
@@ -67,6 +73,52 @@ def _style(rows: list[dict]) -> dict:
     calls = sum(r.get("post_calls") or 0 for r in rows)
     out["af"] = round(sum(r.get("post_aggr") or 0 for r in rows) / calls, 3) if calls else None  # shown to 1 place
     return out
+
+
+def _section(text: str, heading: str) -> str | None:
+    """The body of the first "## <heading>..." section, up to the next heading of level 1 or 2."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(rf"#{{1,3}}\s+{heading}\b", line, re.I):
+            body = []
+            for nxt in lines[i + 1:]:
+                if re.match(r"#{1,2}\s", nxt):
+                    break
+                body.append(nxt)
+            return "\n".join(body).strip() or None
+    return None
+
+
+def _summary(body: str, limit: int = 420) -> str:
+    """The "**Summary:**" entry when there is one, else the first paragraph, without list markers."""
+    m = re.search(r"\*\*Summary:?\*\*:?\s*(.+?)(?=\n\s*(?:[-*]\s|\*\*|\n)|\Z)", body, re.S)
+    text = m.group(1) if m else body.split("\n\n")[0]
+    text = " ".join(re.sub(r"^\s*[-*]\s+", "", ln).strip() for ln in text.splitlines()).strip()
+    if len(text) > limit:
+        cut = text[:limit].rsplit(". ", 1)[0]
+        text = (cut + "." if len(cut) > limit // 2 else text[:limit].rsplit(" ", 1)[0]) + " …"
+    return text
+
+
+def _own_words(ev_dir: str, team: str) -> dict | None:
+    """What the builder wrote about its own bot, from the latest NOTES the referee collected."""
+    d = os.path.join(ev_dir, "bots", team)
+    try:
+        found = sorted((int(m.group(1)), n) for n in os.listdir(d) if (m := NOTES_FILE.fullmatch(n)))
+    except OSError:
+        return None
+    for k, name in reversed(found):
+        try:
+            with open(os.path.join(d, name), errors="replace") as f:
+                text = f.read()
+        except OSError:
+            continue
+        for heading in OWN_HEADINGS:
+            body = _section(text, heading)
+            if body:
+                return {"tournament": k, "file": name, "heading": heading.capitalize(), "summary": _summary(body),
+                        "text": body[:4000]}
+    return None
 
 
 def event_results(ev_dir: str, cutoff: int = CUTOFF) -> dict:
@@ -162,7 +214,7 @@ def _standings(ev_dir: str, total: int, paths: list[str], cutoff: int, analysis:
             "top3": _share(places[:3], tables), "bottom2": _share(places[-2:], tables) if width > 3 else None,
             "hu": round(places[0] / (places[0] + places[1]), 3) if width > 1 and places[0] + places[1] else None,
             "avg_place": round(sum((j + 1) * p for j, p in enumerate(places)) / sum(places), 2) if sum(places) else None,
-            **_style([r["style"] for r in per[t].values()]), "notes": notes.get(t),
+            **_style([r["style"] for r in per[t].values()]), "notes": notes.get(t), "own": _own_words(ev_dir, t),
             "history": history[t],
             "per": {str(k): {"mean": round(r["mean"], 2), "lo": round(r["lo"], 2), "hi": round(r["hi"], 2),
                              "rank": r["rank"], "tables": r["tables"], "places": [round(p, 1) for p in r["places"]]}

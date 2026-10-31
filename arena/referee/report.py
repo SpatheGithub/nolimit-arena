@@ -70,6 +70,10 @@ def play_md(ev_dir: str) -> list[str]:
     for r in res["rows"]:
         notes = r["notes"] or {}
         parts = [f"**{label}.** {notes[k]}" for k, label in NOTE_FIELDS if notes.get(k)]
+        own = r.get("own")
+        if own:
+            parts.insert(0, f"**In its builder's words** ({own['heading']} in `bots/{r['team']}/{own['file']}`). "
+                            f"{own['summary']}")
         if parts:
             lines += [f"### {r['rank']}. {r['team']} ({r['archetype'] or 'free choice'})", ""]
             for part in parts:
