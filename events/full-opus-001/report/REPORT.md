@@ -43,6 +43,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 
 ### 1. b06 (opponent_model)
 
+**In its builder's words** (Approach in `bots/b06/NOTES.T6.md`). `bot/common.py` = copy of the house-bot helper lib (Ranker, Spot parser, `features()` postflop strength heuristic, preflop class/percentile tables). `bot/eqrange.json` = precomputed (tools/precompute.py, 500 MC samples/cell) all-in equity of each of 169 preflop classes vs a random hand from the top-p% range, p in 16 buckets. …
+
 **Strategy.** Kept running stats on every opponent at the table: how often each folds to a raise, to a re-raise and to a bet, starting from default guesses. Before the flop it opened wider when the players behind fold a lot, and shoved all-in over a single raise with 8–30 big blinds whenever that raiser folded often enough to make it pay. After the flop it bet or folded: value bets, bluffs against players who fold, few calls.
 
 **How it scored.** Won 17% of tables, the most, and 59% of its heads-up finishes. It made 3.4 bets or raises for every call after the flop, the most aggressive in the field, while winning only half its showdowns, so its edge came from making opponents fold. Its builder measured the re-steal shove as its biggest single gain (about +3 points per table) and tested every change against three kinds of field. Its last change came after T3, and that version won T4, T5 and T6.
@@ -50,6 +52,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 **Lesson.** Track each opponent's fold rates and shove when they fold too often. The price is variance: it still went out 7th or 8th on 24% of tables, mostly when its own shoves got called.
 
 ### 2. b04 (pressure)
+
+**In its builder's words** (Approach in `bots/b04/NOTES.T6.md`). Aggressive-pressure NLHE SNG bot (bot/agent.py) with helpers copied from house-bot `_common.py` (Spot parser, Ranker, postflop `features()` strength, preflop class/percentile tables).
 
 **Strategy.** Pressure before the flop: wide opens from late position (48% of hands on the button, 62% in the small blind), adjusted to how often the players behind fold. It shoved all-in with 13 big blinds or less, and re-stole all-in with up to 32, whenever the ICM value counting fold equity was positive.
 
@@ -59,6 +63,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 
 ### 3. b02 (free choice)
 
+**In its builder's words** (Approach in `bots/b02/NOTES.T6.md`). `bot/pre.json`: precomputed 169x169 preflop equity matrix (MC, 400 samples/pair, tools/precompute.py) reduced to `eqr[class][p]` = equity vs top-p% range (p=0..100), `pct[class]` = class percentile by equity vs random, `mw` multiway equity, `icm[n][k]` = my ICM equity with n players, my chip share k/200, others equal (tools/icm_table.py, points 100/60/40/25/15/10/5/0). …
+
 **Strategy.** The tightest bot: it put money in on 18% of hands. It precomputed ICM tables and decided shoves, calls and re-shoves by ICM-weighted expected points, adjusting its estimate of how often opponents call its shoves to how they actually responded.
 
 **How it scored.** Won T1 and had the second-fewest early exits (23%), but won only 51% of its heads-up finishes, so it took 1st on 13% of tables against 17% for the top two. Its code was identical for T2–T4, yet it slid from 33.8 to 30.6 points per table.
@@ -66,6 +72,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 **Lesson.** Tight ICM play buys a safe top 5, not wins.
 
 ### 4. b05 (free choice)
+
+**In its builder's words** (Approach in `bots/b05/NOTES.T6.md`). `bot/ev.py`: numpy-vectorized 7-card evaluator. Non-flush value via rank-key-sum lookup (`nf.npy`, 7.8M int32, SK keys, verified collision-free); flush via 13-bit mask table (`fl.npy`), flush suit per sample from a suit-count signature table (FSUIT52). Values = house Ranker encoding (category<<20 | kickers). …
 
 **Strategy.** The most engineered bot: its own vectorized hand evaluator (with a 30 MB lookup table), Monte Carlo equity after the flop against opponent ranges narrowed by how they bet, and ICM for all-in decisions.
 
@@ -75,6 +83,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 
 ### 5. b01 (free choice)
 
+**In its builder's words** (Approach in `bots/b01/NOTES.T6.md`). `bot/agent.py` (+ `bot/_common.py` copied from house bots: Ranker 7-card evaluator, Spot parser, preflop pct table). `bot/eq169.npy`: 169x169 preflop all-in equity matrix (MC, 600 trials/pair, tools/precompute_eq.py). At import -> RQ[h][k] = equity of class h vs top-k% range (ordered by house pct table). …
+
 **Strategy.** Push or fold with 14 big blinds or less, scored in ICM points; Monte Carlo equity after the flop against opponents' ranges; ICM checks on big calls; per-opponent stats on raising, shoving and folding.
 
 **How it scored.** Last after T1 and T2, then climbed to 5th as its patches lifted it from 29.3 points per table in T2 to 32.2 in T4. Like b05, it finished 2nd often (14% of tables, the most) and won only 42% of its heads-up finishes.
@@ -82,6 +92,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 **Lesson.** Winning heads-up as often as b06 would have been worth about 1.6 points per table, enough for 3rd. Its notes don't show why it lost heads-up; the hand logs could.
 
 ### 6. b08 (free choice)
+
+**In its builder's words** (Approach in `bots/b08/NOTES.T6.md`). `bot/agent.py` + `bot/_common.py` (copied house-bot helpers: Ranker, Spot, features()). Preflop: class percentile table (`_common.json`) + `bot/eqtop.json` = equity of each of 169 classes vs the top k% of hands (k=1..100), built from a Monte Carlo 169x169 class-vs-class matrix (tools/pre_eq.py, 1500 deals/pair; tools/mk_eqtop.py). …
 
 **Strategy.** Position-based opens and Nash-style push/fold thresholds, widened when few players are left (80% of hands heads-up) and against tight players; an ICM premium on all-in calls, dropped heads-up; aggressive after the flop (3.3 bets or raises per call).
 
@@ -91,6 +103,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 
 ### 7. b03 (minimal_robust)
 
+**In its builder's words** (Approach in `bots/b03/NOTES.T6.md`). Minimal and robust: rule-based NLHE bot, no simulation at decision time (p99 ~100 µs). `bot/_common.py` + `_common.json`: copied from kit house bots (evaluator `Ranker`, `Spot` parser, safe action builders, `features()` postflop strength 0..1, preflop percentile `pct`). `bot/eqr.json`: precomputed 169x100 table, equity of each preflop class vs top-X% range (range ordered by pct). …
+
 **Strategy.** Simple rules with no simulation at decision time (about 0.1 ms per decision): push or fold by chip value, re-shoves with up to 28 big blinds, fixed thresholds for 3-bets and calls, and a safety net that turns any error into a safe action.
 
 **How it scored.** The loosest bot (played 27% of hands, raised 21%). It went out 7th or 8th on 27% of tables and never placed above 5th in a tournament. Its robustness bought nothing, because no bot in this field ever crashed or timed out.
@@ -98,6 +112,8 @@ Pooled over the finished tournaments. Heads-up won: of the tables where the bot 
 **Lesson.** Robustness is the floor, not an edge. Loose play that isn't priced against specific opponents leaks chips.
 
 ### 8. b07 (equity_tables)
+
+**In its builder's words** (Approach in `bots/b07/NOTES.T6.md`). Precomputed-equity NLHE bot (bot/agent.py), all decisions are lookups + arithmetic (~25 us/act). Preflop: 169-class tables in bot/_common.json (percentile + equity vs k random hands, from kit house bots) and bot/rangeeq.json (my precompute, tools/rangeeq.py: equity of each class vs top-w% range, w in {3,6,10,15,20,30,40,55,75,100}%, 1500 MC deals each). …
 
 **Strategy.** Everything precomputed (about 25 µs per decision): equity tables against ranges, a push/fold chart, and an ICM premium on all-in calls. Its builder estimated it needed about 80% equity to call off its stack with four or more players left.
 

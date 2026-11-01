@@ -1,0 +1,17 @@
+{
+ "session_id": "256b3949-cfe3-470c-b412-0c92cabd9545",
+ "mock": false,
+ "model": "claude-opus-5-5",
+ "effort": "max",
+ "started": 1793562046.5915651,
+ "finished": 1793563189.4184058,
+ "exit": 0,
+ "result": "success",
+ "errors": [],
+ "cost_usd": 7.777376400000001,
+ "settings_loaded": true,
+ "debrief": "DEBRIEF.md",
+ "wrote_debrief": true,
+ "lessons": "LESSONS.md",
+ "lessons_added": 10
+}

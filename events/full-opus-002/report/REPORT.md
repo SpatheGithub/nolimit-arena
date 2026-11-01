@@ -7,6 +7,7 @@
 - **Blinds (doubling):** 10/20, 20/40, 40/80, 80/160, 160/320, 320/640, 640/1280, 1280/2560, every 25 hands; cap 200 hands
 - **Schedule:** build 60 min, 6 tournament(s) of 1000 iterations, patch windows 20 min; time scale 1
 - **Field:** 8 builders; seed 4281125837
+- **Computer asleep:** 27 of 107 builder-window minutes, measured afterwards from the macOS power log; the builders lost that time
 
 ## Final weighted leaderboard
 
@@ -35,6 +36,38 @@
 | 8 | b07 | 11% | 47% | 36% | 28% | 24% | 19% | 3.3 |
 
 Pooled over the finished tournaments. Heads-up won: of the tables where the bot was one of the last two, the share it won. Last two: the share of tables where it finished in the last two places. AF: bets and raises per call after the flop.
+
+### 1. b06 (math_core)
+
+**In its builder's words** (Approach in `bots/b06/NOTES.T6.md`). `bot/_common.py` + `_common.json`: copied from kit house-bot helpers (Spot parser, Ranker, preflop class table, postflop `features()`). `bot/eqmat.json`: 169x169 class-vs-class preflop equity matrix (tools/matrix.py, 240 boards/pair). At import we build `_ER[class][k]` = equity vs top (k+1)*2% range (combo-weighted, ordered by `pct`). …
+
+### 2. b03 (math_core)
+
+**In its builder's words** (Approach in `bots/b03/NOTES.T6.md`). `bot/ev.pkl`: 7-card evaluator tables copied from kit fasteval (rank dict + suited list); `ev()` in agent.py. `bot/pre.pkl`: preflop 1326x1326 equity matrix (4000 random boards, numpy, tools/gen_pre.py + tools/proc_pre.py): `pct[cls]` percentile of class (ordering by equity vs random hand), `eqr[cls][x]` HU equity of class vs top-x% range (x=0..100), with card removal, `cf[x][t]` fraction of hands with equity >= t …
+
+### 3. b08 (free choice)
+
+**In its builder's words** (Approach in `bots/b08/NOTES.T6.md`). Precomputed (tools/pre_*.py): evaluator lookup tables (evtab.pkl, copied from kit fasteval), 169x169 preflop HU equity matrix (pf_eq.npy, MC 1500/pair), equity vs k random hands (pf_mw.npy), ICM table icm_tab.npy: f(n players, my chip share) with others equal, exact kit icm. Preflop: hand percentile ranking; EQR[class, top-x%] equity vs ranges (matrix product at import). …
+
+### 4. b05 (free choice)
+
+**In its builder's words** (Approach in `bots/b05/NOTES.T6.md`). `bot/agent.py` + `bot/hcommon.py` (house-bot helpers copied from kit: Ranker evaluator, Spot parser, `features()` postflop strength heuristic) + data files: `bot/hcommon.json`: preflop class percentile + equity vs k random hands (from kit). `bot/eqmat.json`: 169x169 class-vs-class preflop equity (MC, 400 boards/pair, `tools/pre_eq.py`). …
+
+### 5. b02 (free choice)
+
+**In its builder's words** (Approach in `bots/b02/NOTES.T6.md`). `bot/agent.py`, pure Python, ~25-100 µs per decision. Preflop tables: `pfbase.json` (house-bot pct / equity vs k random hands) and `pfeq.json` (169x169 class-vs-class all-in equity, Monte Carlo with 2000 boards per pair, built by `tools/pre_eq.py` with the kit evaluator offline). At import: equity of each class vs the "top x%" ranges on a grid (EQTOP). …
+
+### 6. b04 (model_pressure)
+
+**In its builder's words** (Approach in `bots/b04/NOTES.T6.md`). `bot/agent.py`: single-file bot. Data files (built by `tools/`): `evtab.pkl`: hand-evaluator tables copied from kit fasteval (rank dict + suited table), same KEY scheme. `pf.pkl`: preflop 169x169 equity matrix (numpy MC, 40M deals) -> `eqr[h][level]` = equity of class h vs top-p range, `pct[h]` = percentile of class (0 best), `rc[p]` = combo lists for top-p ranges (postflop range sampling). …
+
+### 7. b01 (free choice)
+
+**In its builder's words** (Approach in `bots/b01/NOTES.T6.md`). `bot/data.pkl` (built by `tools/precompute.py`): fasteval 5-7 card rank table + suited table (copied from kit engine), 169x169 preflop class-vs-class equity matrix (1200 MC boards per pair), house-bot preflop pct table. Preflop: EQR[class][top-k%] = equity vs top k% range (prefix sums over classes sorted by pct). …
+
+### 8. b07 (model_pressure)
+
+**In its builder's words** (Approach in `bots/b07/NOTES.T6.md`). `bot/agent.py` + copied house helpers `bot/_common.py/.json` (Ranker = engine-identical hand values, preflop pct table, postflop `features()` strength/outs). `bot/pfeq.json`: 169x169 preflop all-in equity matrix (tools/precompute_pf.py, 1500 samples per matchup via kit fasteval). At import, builds RE[c][k] = equity of class c vs top-k% range (ordered by equity vs random). …
 
 ## Rank view
 
