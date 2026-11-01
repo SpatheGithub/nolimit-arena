@@ -1,0 +1,291 @@
+{
+ "meta": {
+  "seed": 6878371484311393056,
+  "iterations": 1000,
+  "workers": 4,
+  "tables": 1000,
+  "hands": 125517,
+  "capped_tables": 0,
+  "startup_s": 0.2784237499872688,
+  "elapsed_s": 13.674542042019311,
+  "log_bytes": 10830063,
+  "settings": {
+   "spec": {
+    "name": "crazy_pineapple",
+    "streets": [
+     {
+      "name": "preflop",
+      "discard": 0,
+      "hole": 3,
+      "board": 0,
+      "bet": true
+     },
+     {
+      "name": "flop",
+      "discard": 0,
+      "hole": 0,
+      "board": 3,
+      "bet": true
+     },
+     {
+      "name": "turn",
+      "discard": 1,
+      "hole": 0,
+      "board": 1,
+      "bet": true
+     },
+     {
+      "name": "river",
+      "discard": 0,
+      "hole": 0,
+      "board": 1,
+      "bet": true
+     }
+    ],
+    "ranks": "23456789TJQKA",
+    "suits": "cdhs",
+    "card_use": {
+     "hole_min": 0,
+     "hole_max": 5
+    },
+    "ranking": {
+     "order": [
+      "high_card",
+      "pair",
+      "two_pair",
+      "trips",
+      "straight",
+      "flush",
+      "full_house",
+      "quads",
+      "straight_flush"
+     ],
+     "ace_low": true
+    },
+    "betting": {
+     "structure": "no_limit",
+     "fl_bets": [],
+     "fl_cap": 4
+    }
+   },
+   "points": [
+    100,
+    60,
+    40,
+    25,
+    15,
+    10,
+    5,
+    0
+   ],
+   "blinds": [
+    [
+     10,
+     20,
+     0
+    ],
+    [
+     20,
+     40,
+     0
+    ],
+    [
+     40,
+     80,
+     0
+    ],
+    [
+     80,
+     160,
+     0
+    ],
+    [
+     160,
+     320,
+     0
+    ],
+    [
+     320,
+     640,
+     0
+    ],
+    [
+     640,
+     1280,
+     0
+    ],
+    [
+     1280,
+     2560,
+     0
+    ]
+   ],
+   "level_hands": 25,
+   "hand_cap": 200,
+   "seats": 8,
+   "starting_stack": 2000,
+   "decision_limit_ms": 1.0,
+   "timing": "thread_cpu",
+   "hang_watchdog_ms": 50,
+   "init_limit_s": 2,
+   "import_limit_s": 30,
+   "native_kill_s": 10.0,
+   "bot_size_limit_mb": 100,
+   "memory_mb": 2048,
+   "hand_logs": true,
+   "rules": ""
+  },
+  "notes": [
+   "memory limit not applied: macOS doesn't enforce RLIMIT_AS"
+  ],
+  "events": [],
+  "crashed_tables": [],
+  "import_problems": {}
+ },
+ "entries": [
+  {
+   "name": "b04",
+   "path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/crazy-pineapple-001/bots/b04/T1",
+   "tables": 1000,
+   "mean": 25.0875,
+   "se": 0.9455118118439009,
+   "lo": 23.23433088721118,
+   "hi": 26.940669112788818,
+   "places": [
+    94.0,
+    92.0,
+    89.0,
+    100.0,
+    128.0,
+    134.0,
+    169.5,
+    193.5
+   ],
+   "cap_survivals": 0,
+   "vpip": 0.24172723953665903,
+   "pfr": 0.1963556706163497,
+   "aggression": 1.5034411562284928,
+   "wtsd": 0.07534269308639517,
+   "showdown_win": 0.44273127753303965,
+   "hands": 60258,
+   "post_aggr": 4369,
+   "post_calls": 2906,
+   "showdowns": 4540,
+   "showdown_wins": 2010,
+   "decisions": 76805,
+   "timeouts": 0,
+   "slow_core_passes": 0,
+   "errors": 0,
+   "illegal": 0,
+   "hangs": 0,
+   "frozen": 0,
+   "init_failures": 0,
+   "import_failures": 0,
+   "observe_errors": 0,
+   "cpu_mean_us": 66.05633609791029,
+   "cpu_p50_us": 25.0,
+   "cpu_p99_us": 401.667,
+   "cpu_max_us": 401.667,
+   "wall_max_us": 24533.625,
+   "output": [],
+   "rank": 3,
+   "hash": "e99e242d0f6bb6b700939f6dfe23a8526705bd9e256442f3815541a2f820abc3"
+  },
+  {
+   "name": "b05",
+   "path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/crazy-pineapple-001/bots/b05/T1",
+   "tables": 1000,
+   "mean": 33.425,
+   "se": 1.0259066036240139,
+   "lo": 31.41425998953466,
+   "hi": 35.43574001046533,
+   "places": [
+    140.0,
+    118.5,
+    138.5,
+    126.0,
+    117.0,
+    123.5,
+    127.0,
+    109.5
+   ],
+   "cap_survivals": 0,
+   "vpip": 0.24833461181315353,
+   "pfr": 0.1885555869568143,
+   "aggression": 1.5849236641221374,
+   "wtsd": 0.070047236464936,
+   "showdown_win": 0.554658981748319,
+   "hands": 74307,
+   "post_aggr": 4983,
+   "post_calls": 3144,
+   "showdowns": 5205,
+   "showdown_wins": 2887,
+   "decisions": 96800,
+   "timeouts": 0,
+   "slow_core_passes": 0,
+   "errors": 0,
+   "illegal": 0,
+   "hangs": 0,
+   "frozen": 0,
+   "init_failures": 0,
+   "import_failures": 0,
+   "observe_errors": 0,
+   "cpu_mean_us": 14.857477696280991,
+   "cpu_p50_us": 25.0,
+   "cpu_p99_us": 50.0,
+   "cpu_max_us": 315.584,
+   "wall_max_us": 23397.291,
+   "output": [],
+   "rank": 2,
+   "hash": "40073e30c505c925c5c5302db585916b03231db1fa2898c24f7ac60364c0b82f"
+  },
+  {
+   "name": "b08",
+   "path": "/Users/carlmacbookpro/Library/Application Support/Claude/scratch-workspaces/ff9c7f7d-6034-4970-a4bc-b2fb47e9c478/06f88a99-9105-4941-a8cf-87e6b02aff65/scratch-2026-10-28-a1d2a7/events/crazy-pineapple-001/bots/b08/T1",
+   "tables": 1000,
+   "mean": 37.16,
+   "se": 1.0051092700023438,
+   "lo": 35.190022014729124,
+   "hi": 39.12997798527087,
+   "places": [
+    142.0,
+    162.0,
+    163.0,
+    138.0,
+    126.0,
+    92.5,
+    91.0,
+    85.5
+   ],
+   "cap_survivals": 0,
+   "vpip": 0.19475384541202564,
+   "pfr": 0.1578547663821785,
+   "aggression": 1.4377699254024343,
+   "wtsd": 0.05576450166353247,
+   "showdown_win": 0.5406398616515348,
+   "hands": 82956,
+   "post_aggr": 3662,
+   "post_calls": 2547,
+   "showdowns": 4626,
+   "showdown_wins": 2501,
+   "decisions": 97862,
+   "timeouts": 0,
+   "slow_core_passes": 1,
+   "errors": 0,
+   "illegal": 0,
+   "hangs": 0,
+   "frozen": 0,
+   "init_failures": 0,
+   "import_failures": 0,
+   "observe_errors": 0,
+   "cpu_mean_us": 16.56545566205473,
+   "cpu_p50_us": 25.0,
+   "cpu_p99_us": 100.0,
+   "cpu_max_us": 1155.292,
+   "wall_max_us": 10748.042,
+   "output": [],
+   "rank": 1,
+   "hash": "4fdf5b82ffc923d309f04bba140cbdc21d8a827df989cd1593cfec51c60e7a24"
+  }
+ ]
+}

@@ -1,0 +1,45 @@
+# Team b03 notes
+
+## Strategy
+
+**Summary:** Preflop decisions use a precomputed 81x81 shortdeck class-vs-class equity matrix (Monte Carlo, 1500 deals/pair) turned into "equity vs top-x% range" tables, so every call/shove is an EV computation against an estimated range, valued with a 50/50 blend of ICM points (precomputed table, exact referee payouts 100/45/20/8) and chip EV. Postflop uses a fast made-hand/draw heuristic adjusted for board dangers (4-straight boards, paired boards, 3-4 flush cards), multiway pots, bet size, street and opponent aggression. Per-seat stats (VPIP, PFR, fold-to-raise, short-stack shove rate, postflop aggression and fold-to-bet) shift ranges and steals during a table.
+
+**Before the flop:** Unopened: open-raise to 2.4bb (+1bb/limper, 2.8bb from SB) with the top 13% (early) to 38% (button) / 55% (SB) of hands, widened when the players behind fold a lot; plus explicit steals with any top-80% hand when the product of the behind players' observed fold-to-raise rates beats the raise's break-even. At <=13bb effective (or 13-18bb with non-premium hands) it is shove-or-fold by EV: sum over players behind of P(call) x value(win/lose) + P(all fold) x value(steal). Facing a raise: raiser range from their PFR (or, for big raises/shoves, from stack depth, position and observed short-stack shove rate); 3-bet/shove the top ~3.5%, re-shove <=22bb by fold-equity EV, call when equity x realization (0.82 OOP, 0.92 IP) beats pot odds; committing calls use the ICM/chip check.
+
+**After the flop:** Strength from category/kicker/texture plus draw outs, minus penalties for dangerous boards, raised to a power for multiway pots. Bets 0.6-0.85 pot with strong hands (only converts to all-in when very strong), 0.5 pot with medium hands heads-up/IP, c-bets heads-up flops as preflop raiser (frequency from opponent fold-to-bet), semi-bluffs draws, rare river bluffs. Facing a bet: equity discounted by bet size, street (turn x1.15, river x1.35) and opponent aggression; raises very strong hands, calls when equity beats pot odds; big calls (>=50% of stack) go through the ICM/chip check.
+
+**Short stacks and the points table:** Push/fold below ~13bb (EV vs modelled calling ranges). All-in decisions valued with blended ICM (V_n(chip share) table for 2-8 players) and chip EV at ICM's marginal rate, so it avoids marginal flips with many players left but stays aggressive enough to win (1st = 100 pts).
+
+**Opponents:** Tracks VPIP, PFR, fold-to-raise, big-raise rate when short (<=25bb), postflop aggression and fold-to-bet per seat, with Bayesian priors. Used for raiser range width, shove-range width, steals, c-bet and bluff frequency, and the bet-strength discount.
+
+**Last change:** v5 (004-f52b239b): postflop leak fixes found by logging big losses: no auto-shove of medium value bets, stronger turn/river bet discount, penalties for 4-straight/paired/flush boards; plus steals vs over-folders. Test (800 tables, same seeds): nit-heavy field 34.2 vs 29.8 (c4) / 28.8 (c3); mixed field 30.6 vs 30.5 (c3).
+
+## Results log
+- v1 vs zoo (200 tables): 41.7 pts/table (1st). vpip 28% pfr 26%.
+- v2 vs [v1x3, mc, nit, maniac, pot_odds] 600 tables: v2 30.2, v1s 29.9/28.6/28.5, nit 26.7.
+- v3 candidate (blend observed fold-to-raise into call ranges) vs [v2x3,...] 700 tables: 28.2 vs v2s 31.8/28.8/28.2 -> not adopted.
+
+- c1 (stronger value bets) 32.2, c2 (pure ICM) 30.8, c3 (ICM/chip blend) 30.5 vs v2 32.0 on seed 11 mixed field: all within noise; c3 submitted as 003 on theory.
+- Mirror field (7 x v2, 1000 tables): v2 20.9, c1 21.3, c3 21.9.
+- Nit-heavy field [v2,nit,v2,nit,mc,nit,v2] seed 31: c3 28.8, c4 (steals) 29.8, c5 (postflop leak fixes) 34.2.
+- Observation: house nit takes 2nd ~40% of tables because aggressive bots bust each other; ICM matters.
+
+- c6 (extra discount per previous barrel by the bettor, pair-on-flush-board penalty, trips weak-kicker penalty, no medium bets after an opponent's postflop raise): quick in-process test 28.7 (150 tables) vs c5 36.9 (121 tables), different table sets, noise +-7 -> NOT submitted. bot/ restored to c5 = 004-f52b239b.
+
+- Final checks: accepted 004 vs zoo (200 tables, seed 7): 44.7 (1st), max 108 us, 0 substitutions. Extra quick.py samples c6 vs c5: mixed 33.6 (100) vs 31.7 (62); nit-heavy 33.3 (96) vs 31.0 (98). Combined with the first sample (28.7 vs 36.9) still inconclusive; c6 is the first thing to test properly in a patch window (fix its O(n^2) scan first).
+
+## Known weaknesses (from big-loss logs, tools/bigloss.py)
+- Calls down 2-3 barrels with overpairs/top pair (AA/KK on paired or 4-straight boards). c6 tried a per-barrel discount; untested properly. Note c6's opp_raised_post scan is O(n^2) in history length; rewrite as a single pass before reusing.
+- Trips with a weak kicker (A9 on A-A board) valued like strong trips (house features() uses max hole rank as kicker).
+- Postflop strength is a heuristic, not equity; no turn barrels as a bluff.
+- Preflop: no limping/over-limping; BB vs limpers only raises top 10%.
+
+## Testing notes
+- Machine got very loaded late in the build (100 tables went from ~11s to 55s; subprocess runs timed out). tools/quick.py is an in-process paired evaluator (play_local_table, seeds 5000+t, rotating my seat) that is much faster; use it with a time budget arg.
+- tools/sim.py = localsim with any bot dir as "ME" plus place histograms; tools/bigloss.py prints our decisions in hands losing >=40% of stack.
+- Fields used: mixed [v2,v2,v1,nit,montecarlo,maniac,pot_odds] seed 11; nit-heavy [v2,nit,v2,nit,montecarlo,nit,v2] seed 31; mirror 7 x v2.
+
+## Notes / next
+- Tools: tools/precompute.py builds bot/eqmat.json; tools/icmtab.py builds bot/icmtab.json.
+- versions/ holds snapshots for A/B tests (v1, v2, c1..c6; c5 = accepted 004).
+- Next: validate c6-style call-down discipline with quick.py on 500+ paired tables; try LAM (ICM blend) 0.3 vs 0.7; widen BB defence vs steals; add turn barrels vs high fold-to-bet seats.

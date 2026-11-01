@@ -1,0 +1,255 @@
+# Team notes (b04, PLO 8-max SNG)
+
+## Strategy
+
+**Summary.** Pot-limit Omaha bot (v33, submission 013-f0f91c94). Exact made-hand strength from lookup tables
+(fraction of opponent two-card combos that beat us), turned into equity against a range that tightens with every
+bet/call the opponents have made; position-based pot-raise preflop; ICM-style risk premium before risking the
+stack; adapts bluff/value thresholds to each opponent's fold rate within a table.
+
+**Before the flop.** Heuristic 4-card score (pairs, suitedness with high-card bonus, connectedness, rundown bonus,
+dangler penalty) mapped to a percentile over random hands. Unopened: pot-raise top ~18% (early) to ~26% (button),
+30% SB; x0.8 (and SB limp 30% instead of 45%) while deep (>40bb) with 6+ players; widens as players bust,
+and x1.35 versus tight blinds. Flat-call a single raise with top 10% (+4% in the
+BB, x1.35 if the raise is a min-raise); 3-bet pot with top ~3.5%; versus a 3-bet+ continue with aces only
+(call 4-bets cheaply with top 2%). Facing an all-in: call on pot odds vs an estimated equity (.62 - .25*pct,
+adjusted for the shover's VPIP, other callers and ICM risk).
+
+**After the flop.** Hero's best hand vs all opponent rank-pair combos (plus flush combos) gives q = share of combos
+we beat; equity = q^(6 * opponents * k) times a board-texture vulnerability factor, plus draw equity (straight
+outs via 5-rank windows, flush draws, nut flag). k grows with bet size, raises this street, and opponents' earlier
+bets (1.0 each) and calls (0.45 each). Value-bet 0.75 pot when ahead of the calling range (eq >= .55); semi-bluff
+strong draws; c-bet heads-up as preflop raiser (40%, adjusted by fold rate); when only two players are left at the
+table, play like a LAG: c-bet 80%, semi-bluff draws with >= 20% equity 80% of the time (else >= 30% at 60%), and
+stab half pot 35% of the time when checked to (skipped vs players who fold < 30% to bets after 5+ samples);
+low-SPR commitment on flop/turn only.
+Raise a bet only with eq_r >= .62/.66, and >= .75 when SPR > 3 (no deep raises with beatable hands).
+
+**Short stacks and the points table.** At <= 12bb: commit mode (pot-raise = all-in) with position-based ranges,
+widened heads-up (open/shove 80%, call 60%) and when <= 5bb. Calls risking > 35% of the stack need extra equity:
++.085 (6-8 players) down to +.045 (3 players) when we'd bust, +.02 when we cover. Heads-up ranges wide
+(open 50%, limp to 85%, defend 65%).
+
+**Opponents.** Per-seat stats within the table only: VPIP, PFR, postflop aggression, fold-to-bet. Fold rate drives
+c-bet/stab/river-bluff frequency and value thresholds (thinner vs non-folders); VPIP of players behind widens
+steals; shover VPIP shifts all-in calls; aggression scales how much a bet tightens their range.
+
+**Last change.** v33 = v31 with the heads-up stab gated by fold rate (HU vs calling station pot_odds: v31 89.6,
+v33 90.3, v27 92.4; vs LAG proxy s7 v33 = v31 = 84.0). v31 = v27 + heads-up aggression (only when 2 players remain): c-bet 80% instead of 40%,
+semi-bluff with draw equity >= .20 at 80% (was >= .30 at 60%), and stab half pot 35% of the time when checked to.
+Why: real-field heads-up win rate was only 43.6% in T5 (~47% over T1-T5); the HU harness (tools/husim.py, 25bb,
+blinds from level 5) showed our base bot wins only ~43% vs an aggressive copy of itself. Tests (1500 HU matches):
+vs LAG proxy s4 82.3 (v30 c-bet/semi-bluff only 78.9, v27 77.2) and s7 84.0 (v30 79.9) -> HU win rate ~43% -> ~58%;
+vs TAG proxy s3 87.0 (v30 86.0, v27 85.0). Full 8-seat table s96: 35.5 (v27 35.4) -> unchanged before HU.
+Previous change v27 (tighter preflop: flat-call top 10%, deep opens x0.8, SB limp .30) took T5 to rank 4 (31.9,
+busts 25.8% vs ~31% before).
+
+
+## Approach
+- `bot/agent.py`, single file, tables built at import (~0.2 s):
+  - 5-card rank-multiset table (RK key sums, like engine fasteval) + flush table by 13-bit mask.
+    Hero PLO value = max over 6 hole pairs x C(board,3) triples. Verified identical ordering to engine.
+  - `analyze()`: exact fraction of opponent 2-card combos (rank pairs weighted by available cards,
+    plus suited flush combos) that beat / tie our made hand -> q = 1 - p_beat - p_tie/2.
+  - Equity vs a range of "tightness" k: q^(6 * n_opp * k) (6 = two-card combos in a 4-card hand),
+    times a board-texture vulnerability factor on flop/turn, plus draw equity (straight outs via
+    5-rank windows, flush draws, nut flag).
+  - k rises with bet size (2*bet/pot), raises this street, and the opponent's earlier actions this hand
+    (H_BET 0.8 per postflop bet/raise, H_CALL 0.35 per postflop call, H_PF 0.4 per preflop raise).
+    Value bets are judged vs the calling range (K_CALL=2 + hist).
+  - Opponent aggression stats per seat (within a table only) scale k (maniacs -> looser calls).
+  - Preflop: heuristic 4-card score (pairs, suits w/ high-card bonus, connectedness, danglers) ->
+    percentile via 12k random hands. Position-based pot-raise opens; 3-bet ~top 3.5%; vs 3-bet+ continue
+    with AA / top ~1% (call cheap top 3.5%).
+  - Short stack (<=12bb): commit mode (pot-raise = "allin").
+  - ICM-ish: risk premium on calls risking >35% of stack (bigger if we'd bust).
+
+## Versions
+- v1 001-8167d767: first version.
+- v3 002-3473c3a1: range-aware equity (history k), texture vulnerability, tight 4-bet range.
+  A/B (500 tables, seed 11, field v1x3+montecarlo,nit,pot_odds,minraiser): v3 45.1 vs v1 43.4; busts down.
+
+- v6 003-85cd93eb: + HU/3-handed wide ranges (HU_SHOVE .80, HU_CALL .60, HU_OPEN .50, HU_LIMP .85, HU_DEF .65),
+  fold-to-bet tracking -> adaptive c-bets/bluffs, steal widening vs tight blinds, no low-SPR shove on river,
+  4-bet calls only AA / top 2% cheap. vs 7x v3: 35.2 (fair 31.9).
+- v9 004-8c0d5ef7: + value-bet thinner vs non-folders (K_CALL -0.5 if fold rate <.3), cheap-raise defense x1.35,
+  IP stabs vs folders. Paired 1000-table test equal to v6 (44.0).
+- v11: + preflop call vs all-in shoves on pot odds (eq_est = .62 - .25*pct, adj by shover vpip, multiway,
+  ICM risk). Paired test 45.3 vs 44.0; vs 7x v9: 34.8 (fair 31.9).
+
+## Tried and rejected
+- ICM-exact bust premiums (+.10): 42.4 vs 44.0 (too tight vs maniacs). Kept .07-.04.
+- Preflop "pot-odds commit" for 35%+ stack calls with eq_est .56-.45*pct: more busts, worse.
+
+- v12 (not submitted): aggression stat postflop-only + pfr-based preflop loose read + 5-bet only AA.
+  vs 7x v11: 31.6 (seed 71), 31.8 vs baseline 33.3 (seed 81); mixed field 44.0 vs 45.3. Not better -> kept v11.
+- K_CALL 1.6 / 2.5: 31.0 / 30.6 vs v11 copies (seed 71) -> keep 2.0.
+- Big-stack late-game open widening x1.25: 30.4 (seed 71) -> no gain.
+- CBET 0.25 vs 0.40: 32.7 vs 33.3 baseline (seed 81) -> keep 0.40.
+
+- Rundown bonus 1.5 -> 3.0 (JT98ds 6.4% -> 4.4%): 32.0 vs 33.3 baseline (seed 81) -> no gain.
+- Wider HU (SHOVE .9, CALL .72, OPEN .6, DEF .78): 33.0 vs 33.3 (seed 81) -> no gain.
+
+## FINAL (end of build): active submission 005-e6298178 = versions/v11 = bot/
+- v11 vs house zoo (localsim 400 tables, seed 5): 57.9 (nit 46.1, checkfold 40.8); 0 substitutions, max 257 us.
+- Paired-test baseline for patch windows: v11 vs 7x v11, 900 tables, seed 81 -> 33.26.
+- v11 vs field of earlier submissions 001-004 (localsim 600 tables, seed 9): 34.3 (2nd of 8); v1 copies
+  27.8-29.7, 002 ~31, 003 33-35.7, 004 32.5.
+- All-in rule: count only players who already called the shove (-.10 each), -.03 per player yet to act:
+  32.7 vs 33.3 baseline -> not submitted (preflop all-ins are rare in PLO; effect within noise).
+- Lower bust premiums (.04-.02): 33.4 vs 33.3 baseline -> flat. With +.10 being worse in the maniac field,
+  RISK_BUST looks flat-to-optimal at .07-.04; leave it unless real results show early busts.
+- Opening ranges x1.15 wider (non-HU): 31.9 vs 33.3 baseline -> worse.
+- Opening ranges x0.88 tighter: 31.6 vs 33.3 -> also worse. Current open widths look locally optimal.
+- CBET 0.55: 33.1 vs 33.3 -> flat (0.25 was 32.7). Keep 0.40.
+- Final check: v11 vs earlier submissions 001-004 (400 tables, seed 99): 35.3, ranked 1st of 8; 0 substitutions.
+
+## Testing tools
+- tools/sim.py --me bot --opponents versions/v9,... (place distribution); tools/logsim.py prints biggest losing hands.
+- Noise: +-3 pts at 500 tables, +-2 at 1000. Paired seeds help a little.
+
+## Findings
+- House-bot zoo: nit/checkfold score ~40 by surviving -> survival is worth a lot; early busts hurt.
+- Biggest leaks seen in logs: stacking off one pair / top two / sets vs multi-street aggression; 4-bet wars
+  with non-AA hands.
+
+## Known weaknesses / next steps
+- aggr() counts preflop raises, so raise-or-fold TAGs look "aggressive" (>0.45) and we loosen calls vs
+  their postflop bets. Fixing it (v12) tested neutral/slightly worse vs our own bluffing copies; revisit if
+  real opponents prove straightforward (check hand logs in patch windows: do they bluff?).
+- Preflop score is heuristic, not equity-based (JT98ds ranked ~6%, probably too low).
+- No range modelling beyond the k exponent; draw equity crude (no redraw / reverse-implied adjustments).
+- Tables never reached the 200-hand cap in sims; cap-ICM logic untested.
+- Patch-window ideas: read tournament results for bust patterns; tune RISK_BUST, HU_* params, opening
+  widths per position; consider equity-based preflop table (MC vs random, offline) if time.
+
+## T1 result (v11 = 005-e6298178): rank 5/8, 31.29 (CI 29.3-33.3)
+- Leaderboard: b05 36.3, b06 34.8, b01 34.5, b02 31.6, b04 31.3, b07 31.3, b03 30.9, b08 24.4.
+- Field is tight: VPIP 21-26% (b07 37%), PFR 14-17%. Ours 27/17 (bigger call gap than top bots).
+- Our places: 1st 12.9%, 2nd 13.7%, 3rd 9.3%, 4th 11%, 5th 11.7%, 6th 12%, 7th 14.8%, 8th 14.6% -> busts high.
+- 1 timeout (cpu max 1470us, outlier) in 114k decisions.
+- sample_hands.json = first 10 hands of 4 tables only; field postflop looks passive, bets .6-.75 pot.
+
+## Patch window before T2: experiments (kept v11; nothing beat it)
+- versions/tag = TAG proxy (v11 without bluffs/c-bets/semi-bluffs, opens x0.85) to mimic the T1 field.
+- v13 (= v12 aggression fix + SB limp .32 + RISK_BUST .085-.05): vs 7x tag 34.3 vs v11 36.0 (seed 91);
+  mixed proxy field (seed 92) 36.1 vs v11 36.4 -> not better.
+- vl (less preflop calling: SB limp .25, BB bonus .03, cheap x1.12, overlimp thr+.02): 35.7 vs 36.4 -> no.
+- Paired baseline for the mixed proxy field: v11, seed 92, 600 tables, opponents
+  tag,v11,tag,v9,tag,v6,tag -> 36.37.
+- vs (steal widening trigger vpip<.28 instead of .22): 36.3 vs 36.4 -> flat.
+- Decision for T2: keep v11 (005-e6298178). Idea for later: T1 P(win|HU) = 129/(129+137) = 0.485 < 0.5,
+  and busts high; HU/late-game vs tight bots is the most likely leak but needs real late-game hands to diagnose
+  (sample_hands only had hands 1-10).
+- tools/husim.py: HU harness (2 seats, 8000 stacks, blinds from level 5 = 25bb, points 100/60).
+  vs versions/tag, 1500 matches, seed 3: v11 84.19 (win 60.5%), wider HU (vh) 84.64, tighter HU (vht) 84.32
+  -> HU range params flat vs TAG proxy. Real-field HU loss rate (T1 48.5%) not reproduced by proxies.
+- versions/lag = LAG proxy (CBET .8, opens x1.3, semi-bluffs d_eq>=.2 @80%). vs 7x lag (seed 93, 500 tables):
+  v11 33.1, v13 32.0 -> v11 not exploited by aggression; v13 again not better.
+- FINAL for T2: keep v11 = 005-e6298178 (bot/ identical).
+- Re-test vs 7x tag (seed 94, 600 tables): v11 35.9, v13 35.1. Across 4 paired fields v13 is 0.2-1.7 behind v11
+  -> the aggression-stat "fix" is not worth shipping unless real hand logs show we pay off value bets.
+- Committed-call slack .05 -> .02 (vcm): 35.8 vs 35.9 (seed 94, tag field) -> flat.
+- H_BET .8->1.0, H_CALL .35->.45 (vhk): 36.2 vs 35.9 (seed 94, tag field) -> +0.4, noise. Candidate to
+  re-test with more tables / other fields in a later window (directionally plausible vs tight real field).
+- vhk in mixed proxy field (seed 92): 36.6 vs v11 36.4 -> +0.2. Two fields: +0.4, +0.2 = consistent but tiny;
+  not shipped before T2. Next window: run vhk vs v11 with 1000+ tables on 2 seeds; ship if still >= v11.
+- vhk vs 7x lag (seed 93): 33.55 vs v11 33.07 -> +0.5. Three fields all slightly positive (+0.4, +0.2, +0.5).
+  Strongest candidate for the next window (versions/vhk: H_BET 1.0, H_CALL 0.45).
+
+## T2 result (v11): rank 6/8, 29.93 (CI 27.9-32.0); weighted total 91.16, rank 5
+- Leaderboard: b05 36.6, b06 35.3, b01 32.3, b02 31.0, b08 30.9, b04 29.9, b03 29.6, b07 29.4.
+- Our places: 1st 13.0%, 2nd 10.9%, 3rd 10.6%, 4th 9.3%, 5th 11.6%, 6th 13.1%, 7th 15.6%, 8th 15.9%.
+  Busts (7th+8th) 31.5% (T1 29.4%) = main weakness; middle places under-represented.
+- VPIP 28 / PFR 17 (top bots 24-25 / 17; b01 19/13). sample_hands again only hands 1-10.
+
+## Patch window before T3
+- SUBMITTED v14 = 006-b1c637b9: v11 + H_BET 1.0, H_CALL 0.45 (more caution vs multi-street action) +
+  RISK_BUST {8:.085,7:.085,6:.075,5:.07,4:.06,3:.045}. Paired vs v11: TAG s94 36.2 vs 35.9; mixed s92 36.9 vs
+  36.4; 4xv11+3xtag s95 (800 tables) 32.3 vs 32.0. Consistently >= v11; aims at the real-field bust rate.
+- Rejected: v15 (call 3-bets with ordinary AA early instead of stacking off): 35.6 vs 36.2 (TAG s94).
+- Rejected: v16 (less flat calling: SB limp .30, overlimp +.03, call_thr .13): 35.2 vs 36.2 (TAG s94).
+- Baselines for v14: TAG s94 600 tables 36.21; mixed s92 36.87; s95 field above 32.34.
+- v17 (H_BET 1.2, H_CALL .55 on v14): 36.35 vs 36.21 (TAG s94) -> flat; diminishing returns, not shipped.
+- FINAL for T3: v14 = 006-b1c637b9 (bot/ identical).
+- v18 (short-stack commit mode at <=15bb instead of 12): 35.7 vs 36.2 (TAG s94) -> worse; keep 12.
+- SUBMITTED v19 = 007-a9d4b38b: v14 + value bets 0.75 pot (was 0.9 HU / 1.0 multiway) when checked to
+  (eq_call >= .55). Paired vs v14: TAG s94 37.63 vs 36.21; mixed s92 37.17 vs 36.87; s95 (800) 33.13 vs 32.34.
+  Three fields all positive. Rationale: tight field calls smaller bets with more of its range; smaller losses
+  when beaten. (Raise sizing when facing bets still pot.)
+- FINAL for T3: v19 = 007-a9d4b38b (bot/ identical). Baselines: TAG s94 37.63, mixed s92 37.17, s95 33.13.
+- Next ideas: try 0.6-0.66 pot value sizing; smaller semi-bluff/c-bet sizes; test raise sizing (pot) vs 0.75.
+- v20 (value bets 0.66 pot): 35.81 vs v19 37.63 (TAG s94) -> worse; 0.75 looks like the sweet spot.
+- CAUTION: v19 vs house zoo (localsim 400, seed 5): 52.9 vs v11 57.9 (same seed). Zoo = stations/maniacs,
+  where pot-sized value bets and looser calls earn more. Real field is TAG-like, so v19 kept for T3.
+  NEXT WINDOW: make value sizing adaptive: pot vs low fold-rate opponents (fold_rate < .3 with nf >= 5),
+  0.75 otherwise; re-test on zoo + TAG s94 + mixed s92. Also check which of v14's parts costs on the zoo.
+- Zoo (tools/sim.py, house zoo, seed 5, 400 tables): v14 56.5, v19 54.6 (localsim same seed: v11 57.9, v19 52.9).
+  Zoo cost is mostly the 0.75 sizing vs stations (~-2), v14 parts ~-1: all within noise. Adaptive sizing
+  (pot vs non-folders) is the first thing to try next window.
+
+## T3 result (v19 = 007-a9d4b38b): rank 7/8, 30.20; weighted total 181.74, rank 6
+- Leaderboard: b05 35.5, b08 34.5, b06 32.4, b01 32.3, b02 30.9, b03 30.5, b04 30.2, b07 28.8.
+- Places: 1st 12.3, 2nd 12.6, 3rd 10.5, 4th 10.5, 5th 10.2, 6th 12.5, 7th 14.6, 8th 16.8 (%). Busts still 31%.
+- VPIP 28 / PFR 18 (loosest with b07 29%, both bottom). 3 timeouts (cpu max 1600us, rare outliers).
+- Real-field scores across versions: v11 31.3, 29.9; v19 30.2 -> sims (self-derived proxies) don't predict field.
+
+## Patch window before T4
+- Rejected v21 (preflop much tighter, VPIP 21%): 33.2 vs 37.6 (TAG s94) -> big loss in sims (fewer 1sts).
+- Rejected v22 (adaptive value sizing: pot vs fold_rate<.3): TAG 37.6 (= v19, never triggers), zoo 53.6 vs 54.6.
+- SUBMITTED v23 = 008-b3e14f94: v19 + deep-stack raise discipline: when facing a bet with SPR > 3, raise only
+  if eq_r >= .75 (was .62 river / .66 earlier). TAG s94 38.18 vs 37.63; mixed s92 36.92 vs 37.17 -> flat in
+  sims; shipped because it targets the real-field early-bust pattern (raising non-nut hands deep and getting
+  re-raised by the nuts) at ~zero sim cost.
+- Untested hypothesis: we fold ~85% to 3-bets after opening (continue only top ~3%); if real bots 3-bet light,
+  we're exploited. Proxies 3-bet only premium, so sims can't test it.
+- Real-field sample (120 hands T1-T3, hands 1-10 only): 3-bets on 11% of opens (12/107); openers fold to
+  3-bet 9/12 (75%). -> being 3-bet light is not a big leak for us. Field over-folds to 3-bets: light 3-bets
+  (pot, ~11bb, need >67% folds) could be +EV but sample tiny and it bloats pots (bust risk) -> idea only.
+- FINAL for T4: v23 = 008-b3e14f94.
+- v23 zoo (tools/sim seed 5, 400): 57.76 vs v19 54.55 (8th place 1%). v23 evidence: TAG +0.55, mixed -0.25,
+  zoo +3.2 -> keep. Baselines for v23: TAG s94 38.18, mixed s92 36.92, zoo s5 57.76.
+- v24 (deep raise discipline from SPR > 2): zoo 57.15 vs v23 57.76 -> flat; keep SPR > 3.
+- v23 vs field of 005/006/007 (localsim 500, seed 13): 30.46 (7th of 8; field 30.2-33.1, all within +-2.8).
+  Net v23 evidence vs v19: +0.55, -0.25, +3.2, ~-2 here -> flat overall; kept (no clear reason to revert).
+- Paired: v19 in same predecessor field (seed 13): 30.34 vs v23 30.46 -> equal; the low score was the seed.
+  v23 net vs v19: +0.55, -0.25, +3.2 (zoo), +0.1 -> keep v23 for T4.
+
+## T4 result (v23 = 008-b3e14f94): rank 8/8, 29.36; weighted total 299.16, rank 7
+- Leaderboard: b05 34.3, b08 34.2, b06 33.3, b01 32.5, b02 31.1, b03 30.3, b07 30.0, b04 29.4.
+- Places %: 10.1, 14.6, 10.7, 10.0, 10.2, 14.4, 14.9, 15.1 -> 6th-8th = 44%. VPIP 28 (loosest with b07, both last).
+- Real-field scores by version: v11 31.3/29.9, v19 30.2, v23 29.4 -> postflop tweaks didn't move real results.
+- Sample hands (5 tables with identifiable seat): set-over-set cooler deep; flat-called a raise with AK43.
+
+## Patch window before T5
+- Seed 94 (TAG) favoured the loose v23 by ~4 over every tightening (v21/v25/v26) -> lucky seed for v23.
+  Fair seeds: s96 v23 34.85, v26 34.64, v27 35.42; s97 v23 32.26, v26 34.08, v27 34.36.
+- SUBMITTED v26 = 009-7f719911 (call_thr .16 -> .10, BB +.04), then v27 = 010-ec606ca5 (+ deep opens x0.8,
+  SB limp .30 when >40bb and 6+ players). v27: VPIP 22-23 / PFR 17 (like b05/b06), busts 21-23%.
+- v27 robustness: zoo s5 57.81 (v23 57.76); mixed s92 36.21 (v23 36.92, busts 21% vs 25%).
+- FINAL for T5: v27 = 010-ec606ca5.
+- Extra fair seed s98 (TAG, 600): v27 35.39 vs v23 33.38 (+2.0; busts 21% vs 27%). v27 now ahead on 3 of 3
+  fair TAG seeds (+0.6, +2.1, +2.0), flat on zoo, -0.7 mixed.
+- v27 vs field of 007/008/009 (localsim 500, seed 13): 31.77 (4th of 8, fair 31.9; v23 scored 30.46 and v19
+  30.34 in the comparable seed-13 predecessor field) -> not exploited by looser versions of itself.
+
+## T5 result (v27 = 010-ec606ca5): rank 4/8, 31.89 (best so far); weighted total 458.59, rank 6
+- Leaderboard: b05 36.0, b06 32.7, b08 32.2, b04 31.9, b01 31.8, b02 30.7, b03 30.3, b07 29.4.
+- Places %: 11.6, 15.0, 12.3, 10.5, 12.0, 12.8, 13.2, 12.6 -> busts 25.8% (was ~31%); VPIP 23.4 / PFR 16.4.
+- Weakness left: heads-up conversion 116/(116+150) = 43.6% (T1-T5 ~47%).
+
+## Patch window before T6
+- HU harness findings (1500 matches, 25bb): v27 vs TAG proxy 85.0 (62%), vs LAG proxy 77.2 (43%) ~ real field.
+  v11 vs LAG 77.4 -> base HU strategy loses to its own aggressive variant.
+- v28 (HU: tightening k x0.6, thinner value): LAG 77.6, TAG 83.8 -> no. v29 (HU loosen vs aggressive only):
+  LAG 77.5, TAG 84.9 -> no.
+- v30 = 011-9c92dc5b (HU c-bet 80%, semi-bluff d_eq>=.2 @80%): LAG 78.9, TAG 86.0; full table s96 35.3.
+- v31 = 012-1f94853d (v30 + HU stab 50% pot 35% when checked to): LAG s4 82.3, s7 84.0 (v30 79.9), TAG 87.0;
+  full table s96 35.5. FINAL for T6: v31.
+- v32 (HU stab 50% instead of 35%): LAG s7 84.5 (v31 84.0), TAG s3 87.7 (v31 87.0) -> +0.5, within noise;
+  not shipped (more exploitable by check-raisers). v31 stays for T6.
+- v31 vs calling station HU (pot_odds, 1000, s8): 89.6 vs v27 92.4 -> ungated stab exploitable.
+- v33 = v31 + stab only if (nf < 5 or fold rate >= .3): station 90.3, LAG s7 83.95 (= v31).
+  SUBMITTED as 013-f0f91c94 = FINAL for T6.
+- v33 full-table zoo check (localsim 400, seed 5): 54.5, rank 1 of 8, 0 substitutions, max 267us
+  (v27 57.8 on tools/sim zoo s5; within noise; HU aggression costs a little vs stations in the zoo).

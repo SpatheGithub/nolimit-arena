@@ -1,0 +1,31 @@
+## Strategy
+
+**Summary:** Tight-aggressive shortdeck bot built on precomputed preflop equities (81 hand classes, vs k random hands plus an 81x81 heads-up matrix) and a fast table-driven 36-card evaluator (about 0.5 µs per hand) that runs a time-boxed Monte Carlo postflop against opponents' estimated ranges. All-in decisions add an ICM risk premium, because under 100/45/20/8 busting early costs far more than doubling up gains.
+
+**Before the flop:** Hands are ranked by their equity against 1 and 3 random hands. It opens the top 11% from early position, then 14/18/26% in middle position, cutoff and button, and 32% from the small blind, widening as the table shrinks and when everyone behind is tight. Opens are 2.2–2.5bb plus 1bb per limper (3bb from the small blind). Facing a raise it 3-bets about the top 3.5% (shoving at 30bb or less) and calls when equity against the raiser's estimated range beats the price. At 13bb or less it plays push/fold, using a shove-EV model built on the callers' estimated ranges.
+
+**After the flop:** Monte Carlo equity (about 0.40 ms of thread CPU) against each opponent's preflop range: raisers ~top 20%, callers ~top 45%, adjusted by their observed PFR and VPIP. When an opponent has bet or raised this street, their sampled hands are conditioned: hands that already have a real holding on this board (a pair, or more on paired boards) are always accepted, and other hands are let through as "bluffs" with probability 0.12–0.8, rising with that player's observed aggression. Value bets go out above an equity threshold (0.62 heads-up, 0.50 against two, 0.42 against more), sized 70–75% pot: bigger with monsters and against players who rarely fold, smaller against folders. C-bets and bluffs happen only when the observed fold rates are high enough. Facing a bet, it compares equity minus a small bet-size margin with effective pot odds, where the pot counts only chips it can actually win (capped by its own stack). It raises or shoves with 0.78+ equity.
+
+**Short stacks and the points table:** Push/fold at 13bb or less. All-in calls need pot odds plus an ICM premium: +5–9% when its own stack is at risk (largest at 4–5 players left), +2.2% when it covers the opponent, nothing heads-up.
+
+**Opponents:** For each seat it counts VPIP, PFR, postflop aggression and fold rate from the hand histories. These widen or narrow the estimated ranges, set bluff frequency and widen steals against tight players. It also replays each hand to see who faced an all-in and whether they called. That observed call rate is blended into the calling ranges the shove-EV model assumes, weighted faced/(faced+5).
+
+**Last change (v007):** Per-opponent all-in call tracking feeds the push/fold shove EV. Against 2× v006 + 4 house bots, 350 tables: 36.7 vs 33.2 for v006 (directional, about 1 SE). v006 fixed bugs: effective pot odds with stack caps, multiway all-in equity, bet size measured relative to the pot before the bet, overlapping cards in conditioned sampling. v004's fixes took a mixed field from 34 to 40 points/table.
+
+## Notes / log
+- v001: placeholder check/fold. v002: first real bot (44 pts vs zoo).
+- Evaluator: bot/ev.py, verified against the house Ranker on 100k random hands (0 mismatches).
+- Precompute: tools/precompute.py (multi 40000 trials/class, hu 1500 trials/pair).
+- Finding: in a mixed field the house nit takes 2nd 55–59% of the time (it outlasts everyone). Survival is very valuable; we bust in 5th–8th too often.
+- ICM required equity for an even-stack all-in (no dead money): 8 players 0.549, 6p 0.572, 5p 0.593, 4p 0.584, 3p 0.568, HU 0.5.
+- v004: fixes for the effective-pot (stack cap) and multiway all-in bugs. Before, the bot called off 100bb with J9o/76o because pot odds counted unwinnable chips. Mixed field: 40.0 vs v003's 33.9/32.2.
+- Tried and rejected: (1) a re-steal shove at 25bb or less over single opens, using an EV model: 27.5 vs 31.5 without it (house bots call shoves too wide). (2) ICM premium x1.4: 23.7 vs 26.1. (3) Conditioning on vs off: a wash (30.8 vs 31.4), kept on principle.
+- Self-like field (versions 004 and 005 + nit + montecarlo): all my versions score about the same (~24–26). Changes since v004 are small against similar bots.
+- Tools: tools/sim.py (place histograms, optional hand logs), tools/analyze.py (chips by level and street, busts), tools/busts.py / tools/pbusts.py (inspect losing hands), tools/spots.py / tools/post.py / tools/pf.py (synthetic spots, push/fold frequencies).
+- Ideas next: track how often each opponent calls all-ins and fold-to-steal, to set shove and steal ranges per opponent; light 3-bets against frequent folders; better HU postflop play.
+- v007: added all-in call tracking (Opp.faced/called) in observe(), used in shove_ev. Unit-tested on synthetic histories.
+- Sim note: two montecarlo bots in one field make 500 tables take more than 5 min (timeout). Use at most 350 tables with one montecarlo.
+- Tried after v007 and reverted: widening the estimated shove range from each opponent's observed preflop shove rate. 300 tables: 34.5 vs 37.5 for v007, so not submitted. bot/ is identical to submission 007.
+- Final check of v007 vs zoo (250 tables): 50.6 points/table (nit 33.7). CPU p99 500 µs, max 502 µs, 0 timeouts/errors/illegal. 1 "hang" (50 ms wall-clock watchdog) while the shared machine was heavily loaded (the run took 204 s, normally ~30 s). CPU stayed far under 1 ms, so it looks environmental. If hangs appear in tournament results, lower the MC budget (t_end = t0 + 0.00040 in equity()) and the batch size.
+- Patch-round priorities: (1) look at tournament results for substitutions; (2) per-opponent fold-to-steal for late-game steals; (3) bigger A/B runs (noise is about ±4 points at 300–400 tables, so smaller effects can't be detected).
+- Final regression check (250 tables, v007 vs v006/v005/v004 at the same tables): 29.7 vs 32.7/28.0/29.0, all within ±5 noise. Kept v007. A 500-table 4×v007 vs 3×v006 run timed out under machine load, so no result.
