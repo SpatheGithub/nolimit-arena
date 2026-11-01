@@ -475,11 +475,12 @@ From `claude --help` (2.1.300) and the model-config docs page:
   - `--strict-mcp-config` with an empty `--mcp-config`, `--disable-slash-commands` and `--permission-prompts none`.
   - `stream-json` with `--verbose`, `--session-id`, `--effort max` and `--max-budget-usd 15`.
   - `builder_env`'s clean environment: no CLAUDE.md, auto memory, background tasks or claude.ai connectors.
-- **Not yet run against a real session.** Untested:
-  - that `dontAsk` denies a write outside the two files;
-  - that `--restricted` with Bash in `--tools` runs the hand printer.
-
-  The first real debrief's `logs/debrief.jsonl` shows both, as `permission_denied` events and tool results.
+- **First real run (2026-11-01, `full-opus-001`, still 2.1.300).** It took 27 minutes and cost $9.28 at API prices. The init event listed Bash, Edit, Glob, Grep, Read and Write, with no `NotebookEdit`, so the settings file loaded. Permission mode was `dontAsk`.
+  - **Writes:** the two allowed files both went through, as one Write and 11 Edits to DEBRIEF.md and one Write that created LESSONS.md.
+  - **Bash:** 33 calls, 7 of them denied.
+  - **Ran:** read-only commands (`ls`, `head`, `wc`, `diff`, `git log`, also piped to `head` or `tail`), and the hand printer, alone or piped to `tail`. So `--restricted` with Bash in `--tools` runs it.
+  - **Denied:** `python -I -c ...`, a `for` loop, `shasum`, a command starting with `cd`, and pipes into `awk`, or into `grep` with a bracket pattern. Each was refused with "Permission to use Bash has been denied because Claude Code is running in don't ask mode", and the analyst carried on another way.
+  - **Still unobserved:** a write outside the two allowed files. The rules imply `dontAsk` refuses it, as it refused every Bash call no rule covered.
 
 ## Open questions
 

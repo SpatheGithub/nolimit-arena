@@ -35,7 +35,7 @@ from ..tournament.play import derive
 from ..tournament.pool import Entry
 from ..tournament.tournament import default_workers, run_tournament
 from ..tournament.validate import validate
-from ..tournament.wsstate import fmt_clock, fmt_duration, submissions as ws_submissions, write_json_atomic
+from ..tournament.wsstate import fmt_clock, fmt_duration, read_windows, submissions as ws_submissions, write_json_atomic
 from ..variants.render import render_event_md
 from .builders import (TMP_ROOT, builder_env, builder_tmpdir, claude_command, ensure_builder_venv, env_file,
                        mock_command, python_base_prefix, read_stream, team_settings, write_settings)
@@ -52,6 +52,7 @@ MOCK_BEHAVIORS = ["normal"] * 6 + ["breaker", "slowpoke", "late", "silent"]
 NUDGE_MIN_S = 45   # don't resume a finished builder with less than this left (scaled)
 MAX_NUDGES = 25    # per builder per window, so a builder that keeps stopping can't loop forever
 NUDGE_BACKOFF_S = 60  # wait after an idle reply (no tool calls), doubling with each one in a row (scaled)
+SLEEP_GAP_S = 5  # a longer gap between two passes of a window's watch loop means the computer slept
 
 
 class Paused(Exception):
@@ -337,7 +338,14 @@ class Event:
                                           subs[-1]["sid"] if subs else None) if resume else None
                     self._launch(t, kind, k, w["end"], prompt, resume=resume or None)
         next_check = w["start"] + min(120 * self.scale, (w["end"] - w["start"]) / 2)
-        while time.time() < w["end"]:
+        last = time.time()
+        while True:
+            now = time.time()
+            if now - last > SLEEP_GAP_S:
+                self._add_back(w, now - last)
+            last = now
+            if now >= w["end"]:
+                break
             self._observe_submissions()
             if not self.mock and time.time() > next_check:
                 next_check = time.time() + 30 * self.scale  # usage limits can hit at any point in a window
@@ -350,6 +358,21 @@ class Event:
         self._observe_submissions(final=True)
         self.state["phase"] = f"freeze:{k + 1}"
         self.save()
+
+    def _add_back(self, w: dict, gap: float) -> None:
+        """The computer slept, so nobody worked: give the window the time back and show
+        it on the builders' clocks. On battery a closed lid sleeps a Mac whatever
+        caffeinate asks, and the deadline would otherwise pass while everyone is frozen."""
+        old = w["end"]
+        w["end"] += gap
+        w["slept_s"] = w.get("slept_s", 0) + gap
+        for t in self.teams:
+            clock = read_windows(t.workspace)
+            for c in clock:
+                if abs(c["end"] - old) < 1:
+                    c["end"] = w["end"]
+            write_clock(t.workspace, clock)
+        self.note("slept", window=f"{w['kind']}:{w['k']}", gap_s=round(gap))
 
     def _nudge_finished(self, kind: str, k: int, end: float) -> None:
         """`claude -p` stops when the model ends its turn, which builders do minutes

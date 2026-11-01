@@ -1,6 +1,7 @@
 """Referee: config draws, builder launch commands, and mock events end to end,
 including a forced crash and resume."""
 
+import datetime
 import json
 import os
 import random
@@ -22,6 +23,10 @@ from arena.referee.commands import archived_bots, cleanup
 from arena.referee.config import Team, assign_teams, draw_event, load_config
 from arena.referee.event import Event, Paused
 from arena.referee.prompts import render_brief, render_nudge
+from arena.referee.report import sleep_lines
+from arena.referee.sleeplog import annotate
+from arena.referee.workspace import write_clock
+from arena.tournament.wsstate import read_windows
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TMP_ROOT = "/private/tmp/nlt"  # short like the real one, and apart from it so tests never touch a live event
@@ -286,6 +291,66 @@ def test_usage_limit_pauses_from_the_first_refusal(tmp_path, monkeypatch):
     ev.resume_paused()
     w = ev.state["windows"][-1]
     assert w["end"] - w["start"] == pytest.approx(640, abs=2)  # the 10 min 40 s left at the first refusal
+
+
+def test_a_window_gets_back_the_time_the_computer_slept(tmp_path, monkeypatch):
+    ev = Event.new(config(tmp_path, "sleepy", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    now = [1_000_000.0]
+    start, closed = now[0], []
+
+    def sleep(s):
+        now[0] += s
+        if not closed and now[0] > start + 60:  # a minute in, the lid closes for 15 minutes
+            closed.append(now[0])
+            now[0] += 900
+
+    monkeypatch.setattr(event_module.time, "time", lambda: now[0])
+    monkeypatch.setattr(event_module.time, "sleep", sleep)
+    monkeypatch.setattr(ev, "_alive", lambda team: True)
+    monkeypatch.setattr(ev, "_stop_all", lambda: None)
+    seen = []
+    monkeypatch.setattr(ev, "_observe_submissions", lambda final=False: seen.append(now[0]))
+    ev.state.update(mock=True, phase="build", windows=[{"kind": "build", "k": 0, "start": start, "end": start + 600}])
+    for t in ev.teams:
+        write_clock(t.workspace, [{"name": "Build window", "start": start, "end": start + 600, "then": "T1",
+                                   "submit": True}])
+    ev._watch_window("build", 0)
+    w = ev.state["windows"][-1]
+    assert w["slept_s"] == pytest.approx(900, abs=1) and w["end"] == pytest.approx(start + 1500, abs=1)
+    assert max(seen) >= w["end"] and ev.state["phase"] == "freeze:1"  # watched the whole extended window
+    assert all(read_windows(t.workspace)[0]["end"] == w["end"] for t in ev.teams)  # builders see the new deadline
+    assert ev.state["events"][-1]["kind"] == "slept" and ev.state["events"][-1]["window"] == "build:0"
+    assert sleep_lines(ev.state["windows"]) == [
+        "- **Computer asleep:** 15 min of the builder windows; the referee added it back to them"]
+
+
+POWER_LOG = """\
+2026-11-01 09:00:00 -0500 Assertions          \tPID 550(powerd) Created InternalPreventSleep "PM configd"
+2026-11-01 09:10:00 -0500 Sleep               \tEntering Sleep state due to 'Clamshell Sleep':TCPKeepAlive=active Using Batt (Charge:80%) 5 secs
+2026-11-01 09:10:01 -0500 Wake Requests       \t[process=dasd request=SleepService deltaSecs=910 wakeAt=2026-11-01 09:25:11]
+2026-11-01 09:20:00 -0500 DarkWake            \tDarkWake from Deep Idle [CDNP] : due to smc.sysState.Wake Using BATT (Charge:80%)
+2026-11-01 09:20:05 -0500 Sleep               \tEntering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:80%) 9 secs
+2026-11-01 09:25:00 -0500 Wake                \tWake from Deep Idle [CDNVA] : due to UserActivity Using BATT (Charge:79%)
+"""
+
+
+def test_sleep_measured_afterwards_from_the_power_log(tmp_path):
+    ev = Event.new(config(tmp_path, "slept", builders={"count": 2, "models": {"sonnet": 2}, "archetypes": "none"}),
+                   root=str(tmp_path / "events"))
+    at = lambda clock: datetime.datetime.strptime(f"2026-11-01 {clock} -0500", "%Y-%m-%d %H:%M:%S %z").timestamp()
+    ev.state["windows"] = [{"kind": "build", "k": 0, "start": at("08:30:00"), "end": at("09:05:00")},  # before the log
+                           {"kind": "patch", "k": 1, "start": at("09:05:00"), "end": at("09:35:00")},
+                           {"kind": "patch", "k": 2, "start": at("09:40:00"), "end": at("10:00:00"), "slept_s": 60}]
+    lines = annotate(ev, POWER_LOG)
+    w = ev.state["windows"]
+    assert "asleep_s" not in w[0] and "asleep_s" not in w[2]  # not covered; already made up for
+    assert w[1]["asleep_s"] == 600 + 295  # a dark wake ends a sleep; a "Wake Requests" line doesn't
+    assert lines == ["build 0: before the power log starts; not measured", "patch 1: asleep 15 of 30 min",
+                     "patch 2: the referee added back 1 min of sleep"]
+    assert json.load(open(ev.p("state.json")))["windows"][1]["asleep_s"] == 895
+    assert sleep_lines(w)[1] == ("- **Computer asleep:** 15 of 85 builder-window minutes, measured afterwards "
+                                 "from the macOS power log; the builders lost that time")
 
 
 def run_referee(args, events_root, **kw):

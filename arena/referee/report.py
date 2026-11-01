@@ -83,6 +83,21 @@ def play_md(ev_dir: str) -> list[str]:
     return lines
 
 
+def sleep_lines(windows: list[dict]) -> list[str]:
+    """The computer's sleep during builder windows: added back as it happened (``slept_s``),
+    or measured afterwards from the power log for events run before that (``asleep_s``)."""
+    added = sum(w.get("slept_s", 0) for w in windows) / 60
+    lost = sum(w.get("asleep_s", 0) for w in windows) / 60
+    total = sum(w["end"] - w["start"] for w in windows) / 60
+    out = []
+    if added >= 1:
+        out.append(f"- **Computer asleep:** {added:.0f} min of the builder windows; the referee added it back to them")
+    if lost >= 1:
+        out.append(f"- **Computer asleep:** {lost:.0f} of {total:.0f} builder-window minutes, measured afterwards "
+                   "from the macOS power log; the builders lost that time")
+    return out
+
+
 def write_report(ev) -> str:
     card, T = ev.card, ev.card["tournaments"]
     teams = {t.team: t for t in ev.teams}
@@ -98,14 +113,15 @@ def write_report(ev) -> str:
              f"- **Schedule:** build {card['build_minutes']:g} min, {T} tournament(s) of {card['iterations']} "
              f"iterations, patch windows {card['patch_minutes']:g} min; time scale {ev.scale:g}"
              + ("; mock builders" if ev.mock else ""),
-             f"- **Field:** {len(ev.teams)} builders; seed {card['seed']}", ""]
+             f"- **Field:** {len(ev.teams)} builders; seed {card['seed']}"] + sleep_lines(ev.state.get("windows", [])) + [""]
     lines += ["## Final weighted leaderboard", "",
               "| Rank | Team | Model | Archetype | Weighted score | " + " | ".join(f"T{k}" for k in range(1, T + 1)) + " |",
               "| -: | :- | :- | :- | -: |" + " -: |" * T]
     per_t = {k: {r["name"]: r for r in (summaries[k] or {"entries": []})["entries"]} for k in range(1, T + 1)}
     for rank, team in enumerate(sorted(weighted, key=lambda x: -weighted[x]), 1):
         t = teams[team]
-        cells = [f"{per_t[k][team]['mean']:.1f}" if team in per_t[k] else "no bot" for k in range(1, T + 1)]
+        cells = [f"{per_t[k][team]['mean']:.1f}" if team in per_t[k] else "no bot" if summaries[k] else "not played"
+                 for k in range(1, T + 1)]
         lines.append(f"| {rank} | {team} | {t.model} | {t.archetype or 'free choice'} | {weighted[team]:.1f} | "
                      + " | ".join(cells) + " |")
     lines.append("")

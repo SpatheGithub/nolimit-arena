@@ -7,6 +7,7 @@
     python -m arena.referee enter <event> <bot_dir> --team <name>
     python -m arena.referee report <event>
     python -m arena.referee debrief <event> [--mock] [--model opus] [--effort max] [--budget-usd 15]
+    python -m arena.referee sleep <event>
     python -m arena.referee cleanup <event>
     python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]
                                      [--card-from <event>] [--iterations 200]
@@ -180,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", default="opus")
     p.add_argument("--effort", default="max")
     p.add_argument("--budget-usd", type=float, default=15.0, help="cap on Claude Code's API-price estimate")
+    sub.add_parser("sleep", help="measure the computer's sleep in each builder window (macOS power log)"
+                   ).add_argument("event")
     p = sub.add_parser("enter")
     p.add_argument("event")
     p.add_argument("bot_dir")
@@ -220,6 +223,12 @@ def main(argv: list[str] | None = None) -> int:
         from .report import write_report
         write_report(ev)
         print(ev.p("report", "REPORT.md"))
+    elif a.cmd == "sleep":
+        if referee_alive(ev.state.get("referee_pid")):
+            print(f"{ev.id}'s referee is running, and it would overwrite the measurement; run this after it stops")
+            return 1
+        from .sleeplog import annotate
+        print("\n".join(annotate(ev)))
     elif a.cmd == "enter":
         print(enter(ev, a.bot_dir, a.team))
     elif a.cmd == "cleanup":

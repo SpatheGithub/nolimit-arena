@@ -45,8 +45,11 @@ Keep this list current as commands are added.
 - `python -m arena.referee chain CONFIG [CONFIG ...] [--after <event-id>] [--mock]` (events back to back; configs may `extends:` another, as `configs/variant-*.yaml` extend `full-opus.yaml`; rerunning the same command resumes)
 - `python -m arena.referee status|report|cleanup <event-id>` (the report's rank view, field profile and exploit board come from the hand logs; profiles are cached in `results/T<k>/profile.json`)
 - `python -m arena.referee debrief <event-id> [--mock]` (one paid `claude -p` analyst run, only when the user asks; writes `report/DEBRIEF.md` and `LESSONS.md`; `--mock` is free)
+- `python -m arena.referee sleep <event-id>` (measures each builder window's sleep from the macOS power log, for events run before the referee added sleep back; the report shows it)
 - `python -m arena.tournament.hands events/<id>/results/T<k> [--team NAME] [--hands 20]` (prints a tournament's compressed hand logs as text)
 - `python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]` (scores a bot against archived builder bots; no builders, no spend)
 - `python -m arena.house_bots.sync [--check]` (refreshes each house bot's copies of `_common` and `_strategy`; builders' kits get only `KIT_BOTS`)
 
 Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.
+
+Run events on AC power. On battery a closed lid sleeps the Mac whatever `caffeinate` asks. The referee adds the slept time back to the window, so the event just takes longer, but a tournament played while the lid is closed may record a few spurious hangs.
