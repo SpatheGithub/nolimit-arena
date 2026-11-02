@@ -1,0 +1,9 @@
+# Rerun of shortdeck-001 (2026-11-02). The Mac slept on battery through 109 of that event's
+# 138 builder-window minutes, so its builders barely worked. Same seed, so the same card,
+# starting ideas per slot and tournament seeds; the referee now adds any sleep back.
+#   python -m arena.referee chain configs/variant-shortdeck-002.yaml \
+#       configs/variant-crazy-pineapple-002.yaml --after royal-001
+extends: variant-shortdeck.yaml
+event:
+  name: shortdeck-002
+  seed: 2685883945

@@ -1,0 +1,9 @@
+# Rerun of crazy-pineapple-001 (2026-11-02). The Mac slept on battery through 130 of that
+# event's 136 builder-window minutes; five builders had no bot for T1. Same seed, so the same
+# card, starting ideas per slot and tournament seeds; the referee now adds any sleep back.
+#   python -m arena.referee chain configs/variant-shortdeck-002.yaml \
+#       configs/variant-crazy-pineapple-002.yaml --after royal-001
+extends: variant-crazy-pineapple.yaml
+event:
+  name: crazy-pineapple-002
+  seed: 3996735514
