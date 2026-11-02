@@ -349,8 +349,8 @@ def test_sleep_measured_afterwards_from_the_power_log(tmp_path):
     assert lines == ["build 0: before the power log starts; not measured", "patch 1: asleep 15 of 30 min",
                      "patch 2: the referee added back 1 min of sleep"]
     assert json.load(open(ev.p("state.json")))["windows"][1]["asleep_s"] == 895
-    assert sleep_lines(w)[1] == ("- **Computer asleep:** 15 of 85 builder-window minutes, measured afterwards "
-                                 "from the macOS power log; the builders lost that time")
+    assert sleep_lines(w)[1] == ("- **Computer asleep:** 15 of 84 builder-window minutes, measured afterwards "
+                                 "from the macOS power log; the builders lost that time")  # 85 less the minute added back
 
 
 def run_referee(args, events_root, **kw):

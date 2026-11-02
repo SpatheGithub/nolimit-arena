@@ -88,7 +88,7 @@ def sleep_lines(windows: list[dict]) -> list[str]:
     or measured afterwards from the power log for events run before that (``asleep_s``)."""
     added = sum(w.get("slept_s", 0) for w in windows) / 60
     lost = sum(w.get("asleep_s", 0) for w in windows) / 60
-    total = sum(w["end"] - w["start"] for w in windows) / 60
+    total = sum(w["end"] - w["start"] for w in windows) / 60 - added  # the scheduled minutes
     out = []
     if added >= 1:
         out.append(f"- **Computer asleep:** {added:.0f} min of the builder windows; the referee added it back to them")
