@@ -23,6 +23,19 @@ so far, and measure whether each lesson actually gains points or introduces a fl
    - Pricing everything in chips instead of ICM hurts. Calls need ICM: −0.6 in hold'em, −1.8 in short deck.
    - Calibrating hand strength for small decks hurt slightly.
    - No-flat-calls and respecting big bets are worth under a point each.
+**Where the shipped bot stands** (points per table, 3,000 paired tables per row):
+
+| Field | Ours | Field average | Our base | Verdict |
+| :- | -: | -: | -: | :- |
+| Hold'em builders, minus the winners | **37.6** | 31.9 | 30.1 | strong; ties event 2's winner |
+| Hold'em builders + house zoo | **42.5** | 31.9 | 36.8 | strong |
+| House zoo only | 49.6 | 31.9 | 49.2 | strong, no backfire |
+| Short deck builders (top_heavy) | **25.7** | 21.6 | 21.2 | strong |
+| Crazy pineapple, starved first run | 36.7 | 31.9 | 35.3 | above average |
+| Crazy pineapple, awake rerun | 27.1 | 31.9 | 26.7 | **below average** |
+| PLO builders | 26.5 | 31.9 | 26.1 | **weak** (1.3% wins) |
+| Royal builders (winner_take_most) | 11.1 | 16.25 | 11.7 | **weak** |
+
 4. **The method lesson.** The first build looked useless (+0.25) because of a bug (blind posts
    counted as acting) and timid pricing. Profiling the behaviour (3-bet rate 4% against the
    winner's 18%) found both. **Check what the bot actually does before trusting a null result.**
@@ -338,6 +351,14 @@ the awake run's bots average **36.86** points per table and the starved run's **
 Most of a bot's strength comes in the first half hour or so, and returns diminish after that.
 **For the 60-minute build day:** get a sound bot submitted early. After that, test discipline
 matters more than extra minutes.
+
+### 2026-11-03 11:46: crazy pineapple against the awake rerun's bots
+
+3,000 paired tables, shipped against base: **+0.46 ± 1.40**, within noise. Both score about 27 points per
+table against an average of 31.9, so we're below average against strong crazy pineapple bots.
+With the two-card gate, the preflop lessons are off there, which leaves only the postflop `respect`.
+**The missing piece** is a re-steal priced for three-card hands: equity of the best two of three
+against ranges, by Monte Carlo. It's the same mechanism that took hold'em from −8 to level with the winner.
 
 ## What has won so far (events)
 

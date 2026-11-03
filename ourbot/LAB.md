@@ -1,6 +1,6 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 11:06; our bot's code is now a1159b1d1f1a.
+Written by `python -m ourbot.lab report` at 2026-11-03 11:46; our bot's code is now a1159b1d1f1a.
 Δ is the paired difference from `base` (our bot with every switch off, which is the house icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
@@ -157,4 +157,11 @@ Written by `python -m ourbot.lab report` at 2026-11-03 11:06; our bot's code is 
 | :- | -: | -: | -: | -: | -: |
 | plohu | 3000 | 26.52 | +0.41 ± 0.15 | 1.3 | +1.0 |
 | base | 3000 | 26.10 | · | 0.2 | · |
+
+## variants: crazy2 (bot code a1159b1d1f1a)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| shipped | 3000 | 27.14 | +0.46 ± 1.40 | 12.8 | +0.0 |
+| base | 3000 | 26.68 | · | 12.7 | · |
 
