@@ -315,6 +315,30 @@ Every PLO builder converged on about 23% VPIP, 17% PFR and 40%+ steals, with c-b
   with equity-based Omaha play, which is beyond tonight's scope.
   **If the event's variant is Omaha-like, build its strategy fresh on the day.**
 
+### 2026-11-03 11:40: crazy pineapple rerun, and how much build time matters
+
+**Event** (crazy-pineapple-002: same seed and slots as 001, builders awake, no lost minutes):
+1. b02 model_pressure 719.0 (P(1st) 68%), 6th in 001.
+2. b08 free 710.3 (27%).
+3. to 5. b01, b07 and b04, all free choice.
+
+The bottom three were b03 math_core, b05 model_pressure and b06 math_core (3rd in 001).
+
+**Pooled both runs' final bots in one tournament** (16 bots, 1,000 iterations, seed 20261103):
+the awake run's bots average **36.86** points per table and the starved run's **26.89**, so **+10.0**.
+*Every* awake bot beat *every* starved bot: the worst rerun bot scored 33.6 and the best 001 bot 31.3.
+
+**What build time buys** (two natural experiments, same seeds and slots):
+
+| Variant | Awake minutes in the first run | Gain from full time (pooled) |
+| :- | -: | -: |
+| short deck | about 29 of 138 | +1.2 per table |
+| crazy pineapple | about 6 of 136 | **+10.0** per table |
+
+Most of a bot's strength comes in the first half hour or so, and returns diminish after that.
+**For the 60-minute build day:** get a sound bot submitted early. After that, test discipline
+matters more than extra minutes.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
@@ -326,7 +350,7 @@ Every PLO builder converged on about 23% VPIP, 17% PFR and 40%+ steals, with c-b
 | crazy-pineapple-001 | crazy pineapple, standard | b08 (free) | 100% | 130 of 136 min asleep; 5 bots missed T1 |
 | royal-001 | royal, winner_take_most | b05 (math_core) | 87% | build 49 of 60 min asleep |
 | shortdeck-002 | short deck rerun, same seed | b06 (math_core) | 97% | clean; its bots beat 001's by ~1.2 pts/table |
-| crazy-pineapple-002 | crazy pineapple rerun, same seed | queued | | |
+| crazy-pineapple-002 | crazy pineapple rerun, same seed | b02 (model_pressure) | 68% | clean; its bots beat 001's by ~10 pts/table |
 
 **What recurs:**
 - **Re-steals win hold'em.** Pricing re-steals by fold rates won both hold'em events.
