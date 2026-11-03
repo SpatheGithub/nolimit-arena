@@ -191,7 +191,25 @@ also pairs table for table with the winners' recorded results.
 - **Sanity check:** the v2 `base` reproduced the earlier `base` to +0.05 ± 1.05 over the same tables.
 - **Shipped defaults now:** resteal, chipsteal, noflat and respect on; shove20 and chipev off.
 
-Short deck and royal for v2 are running next. Does the edge transfer to other variants?
+### 2026-11-03 06:36: v2 short deck and royal. The edge transfers to short deck, not royal
+
+| Config | Short deck (top_heavy; avg 21.6) | Royal (winner_take_most; avg 16.25) |
+| :- | -: | -: |
+| base | 21.17 (10.7% wins) | 11.67 (7.8% wins) |
+| v1 (fixed, ICM-priced) | +2.86 ± 1.50 | −0.17 ± 1.14 |
+| **chipsteal** (shipped) | **+4.56 ± 1.57** (16.6% wins) | −0.60 ± 1.18 |
+| chipsteal without noflat | +3.51 ± 1.54 | −0.27 ± 1.13 |
+| chipsteal + chipev | +2.75 ± 1.57 | −0.53 ± 1.16 |
+
+The short deck field is the latest bots of shortdeck-001 and the finished shortdeck-002.
+
+- **Short deck:** the re-steal edge transfers, at +4.6 points per table with 16.6% wins against 10.7%.
+  noflat helps here (+1.1 on top). **chipev is clearly bad** (−1.8 on top of chipsteal), so
+  ICM on calls matters even more under a top-heavy table.
+- **Royal:** nothing in v2 moves our bot, and the base stays far below this field (11.7 against 16.25).
+  The re-steal model's equities come from the royal charts, so the problem is likely elsewhere:
+  postflop strength, or how hands play on a 20-card deck. Next: profile our base against
+  royal-001's bots, to find where it loses.
 
 ## What has won so far (events)
 
