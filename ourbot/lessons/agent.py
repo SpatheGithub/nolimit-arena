@@ -180,15 +180,18 @@ class Agent(TagCore):
         sp = Spot(obs, var)
         if var.family != "holdem" or var.limit or sp.street > 0:
             return super().decide(obs)
-        if self.on["resteal"] and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and \
+        # The preflop lessons price hands with two-card equity tables, so they apply only when two hole
+        # cards are dealt: with crazy pineapple's three they cost 4.0 +/- 1.4 points per table.
+        two = len(sp.hole) == 2
+        if self.on["resteal"] and two and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and \
                 (self.chip_resteal_gains(sp) if self.on["chipsteal"] else self.resteal_gains(sp)):
             return act_allin(sp)
         if sp.eff_bb <= self.short_bb:
             return self.short_preflop(sp)
-        if self.on["shove20"] and sp.raises == 0 and sp.to_call > 0 and sp.eff_bb <= 20 and len(sp.behind) <= 3:
+        if self.on["shove20"] and two and sp.raises == 0 and sp.to_call > 0 and sp.eff_bb <= 20 and len(sp.behind) <= 3:
             return act_allin(sp) if self.push_gains(sp) else act_fold(sp)
         a = self.preflop(sp)
-        if self.on["noflat"] and a.get("action") == "call" and sp.role != "other" and self.single_open(sp) \
+        if self.on["noflat"] and two and a.get("action") == "call" and sp.role != "other" and self.single_open(sp) \
                 and sp.eff_bb <= 30 and not (sp.role == "BB" and self.var.pre.pct[self.var.pre.best_cls(sp.hole)] <= 0.40):
             return act_fold(sp)
         return a

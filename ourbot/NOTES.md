@@ -270,6 +270,24 @@ Our base and the shipped bot each played 3,000 paired tables on the hold'em card
 - **No backfire.** Against loose and odd bots the re-steal neither helps nor hurts, because its tight-table gate keeps it quiet there. Both versions crush the zoo, at about 49 points per table against an average of 31.9.
 - **In a mixed field the edge stays large** (+5.7). It doesn't depend on every opponent being a tight AI-built bot.
 
+### 2026-11-03 10:31: PLO and crazy pineapple. Two weaknesses, one fixed
+
+Our base and the shipped bot each played 3,000 paired tables.
+
+| Field | Base | Shipped | Δ | Wins |
+| :- | -: | -: | -: | :- |
+| plo (plo-001's bots; standard points, avg 31.9) | 26.10 | 26.10 | 0.00 | **0.2%** |
+| crazy (crazy-pineapple-001's weak bots) | 35.33 | 31.31 | **−4.03 ± 1.38** | 19.1% → 16.7% |
+
+- **PLO: our bot almost never wins.** It took 6 of 3,000 tables. Both configs play the house `omaha()`
+  game, so they're identical. That game opens only strong hands and calls raises only with strong ones, using fixed thresholds.
+  In PLO, where equities run close, it survives into middle places and gets blinded down.
+  **If the event's variant is Omaha-like, don't rely on this code;** it needs a real strategy.
+- **Crazy pineapple: the lessons hurt.** It deals 3 hole cards preflop, but the re-steal prices hands
+  with two-card equity tables, so it misjudges both our hand and the openers' ranges. **Fix:** the
+  preflop lessons (resteal, shove20, noflat) now apply only when exactly two hole cards are dealt.
+  Hold'em, short deck and royal are unchanged. A re-test on crazy pineapple is running.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
