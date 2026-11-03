@@ -453,6 +453,54 @@ With three hole cards on the flop, hero's equity is that of the best pair to kee
 - eqpost's 29 timeouts all came in one block (16:02) that also recorded 6 decisions over 50 ms of wall time.
   There was no sleep event, so it was a system hiccup. eqboth had none.
 
+### 2026-11-03 16:22: wider preflop play in small decks (wide). No gain
+
+`wide` opens 1.5x wider in royal and 1.2x in short deck, and calls single raises with up to the top
+45% and 36% (from 30%). That copies royal-001's winner, who saw 35% of flops to our 21%.
+Shipped vs shipped + wide, 3,000 paired tables:
+- **Royal:** −0.56 ± 1.25 (wins 7.8% → 7.7%).
+- **Short deck:** −0.22 ± 1.60.
+
+- **Playing more hands doesn't help with the old postflop game.** The extra hands lose after the
+  flop what they gain before it. Off. `eq2` tests it on top of equity postflop.
+- **Short deck's field replays differently from run to run** (shipped scored 24.63, then 24.28,
+  on the same seeds). Several of its bots time-budget their Monte Carlo search, so their play depends
+  on CPU speed. The comparison stays paired within a run, only noisier.
+
+### 2026-11-03 17:10: on top of equity play, bluffing helps (eqbluff); wider preflop doesn't (eq2)
+
+3,000 paired tables per row, compared against shipped + eqpost.
+
+| Field | eqpost | + eqbluff | Δ | + wide | Δ |
+| :- | -: | -: | -: | -: | -: |
+| royal | 13.45 | **14.89** | **+1.44 ± 0.90** | 13.89 | +0.44 ± 1.45 |
+| short deck | 25.41 | 26.58 | +1.17 ± 1.62 | 25.01 | −0.39 ± 1.66 |
+| hold'em minus winners | 37.48 | 37.95 | +0.47 ± 1.21 | 35.92 | −1.56 ± 1.16 (identical play, see below) |
+
+- **eqbluff gains everywhere.** It bluffs the river heads-up when checked to with under 25% equity, and bets 1.5x as often once three or fewer players are left.
+  The average over the three fields is about +1.0 ± 0.7. Royal alone is significant: wins 9.7% → 11.4%, and royal is now at
+  14.9 points per table, from 11.1 this morning (field average 16.25). **On.**
+- **wide stays off.** It's neutral in royal and short deck even with equity postflop.
+- **An accidental A/A test.** `wide` does nothing on a 52-card deck, so in hold'em eqwide plays exactly like eqpost. It still came out at
+  **−1.56 ± 1.16**, about 2.6 standard errors. Several opponent bots time-budget their search, so
+  the same seed doesn't replay the same way. Each config's run faces slightly different opponents,
+  and the interval may understate the noise, or this was a 1-in-100 fluke.
+  - **Read borderline results with suspicion.** The results that stand clear of it are PLO's eqplo (+3.5, z 7.5),
+    royal's eqpost (+2.4, z 3.4), crazy pineapple's eqpost + eqdisc (+2.4, z 3.2) and royal's eqbluff (+1.4, z 3.1).
+  - Short deck and hold'em effects under about 1.5 points need more tables, or a repeat, before they count.
+
+### 2026-11-03 17:28: heads-up ranges (hu). Too small to tell
+
+`hu` reads a single heads-up raise as the top 50% or wider. The house range blends full-table PFR, and royal-001's winner fixed the same leak.
+3,000 paired tables, against shipped + eqpost:
+- **Royal:** +0.38 ± 0.46.
+- **Short deck:** +1.07 ± 1.60.
+- **Hold'em:** −0.25 ± 1.23.
+
+- **Possibly a small gain** in the small decks. Royal replays deterministically and is the cleanest read, at about 1.6 standard errors.
+  It isn't significant anywhere, so it ships **off**. It's worth a retest with more tables if heads-up play becomes the focus.
+- Royal replays exactly: eqpost scored 13.48 in both the `eq` and `hu` runs, because no royal bot times its own search.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |

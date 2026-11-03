@@ -1,6 +1,6 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 16:13; our bot's code is now 875318dbca47.
+Written by `python -m ourbot.lab report` at 2026-11-03 17:36; our bot's code is now 875318dbca47.
 Δ is the paired difference from the control over the same tables, with a 95% interval: `base` (our bot with every switch off, which is the house icm_pushfold) where the experiment has it, else `shipped` (the shipped switches). Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
@@ -213,6 +213,66 @@ Written by `python -m ourbot.lab report` at 2026-11-03 16:13; our bot's code is 
 
 | Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
 | :- | -: | -: | -: | -: | -: |
-| wide | 800 | 11.75 | +0.55 ± 2.49 | 9.2 | +1.0 |
-| shipped | 850 | 11.41 | · | 8.5 | · |
+| shipped | 3000 | 11.07 | · | 7.8 | · |
+| wide | 3000 | 10.50 | -0.56 ± 1.25 | 7.7 | -0.2 |
+
+## wide: shortdeck (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| shipped | 3000 | 24.28 | · | 15.5 | · |
+| wide | 3000 | 24.05 | -0.22 ± 1.60 | 15.6 | +0.1 |
+
+## eq2: royal (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqbluff | 3000 | 14.89 | +1.44 ± 0.90 | 11.4 | +1.7 |
+| eqwide | 3000 | 13.89 | +0.44 ± 1.45 | 10.7 | +1.0 |
+| eqpost | 3000 | 13.45 | · | 9.7 | · |
+
+## eq2: shortdeck (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqbluff | 3000 | 26.58 | +1.17 ± 1.62 | 16.5 | +1.1 |
+| eqpost | 3000 | 25.41 | · | 15.4 | · |
+| eqwide | 3000 | 25.01 | -0.39 ± 1.66 | 15.6 | +0.2 |
+
+## eq2: nlhe-x (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqbluff | 3000 | 37.95 | +0.47 ± 1.21 | 20.6 | +0.2 |
+| eqpost | 3000 | 37.48 | · | 20.4 | · |
+| eqwide | 3000 | 35.92 | -1.56 ± 1.16 | 17.8 | -2.6 |
+
+## hu: royal (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqhu | 3000 | 13.86 | +0.38 ± 0.46 | 10.2 | +0.5 |
+| eqpost | 3000 | 13.48 | · | 9.7 | · |
+
+## hu: shortdeck (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqhu | 3000 | 26.89 | +1.07 ± 1.60 | 17.4 | +1.6 |
+| eqpost | 3000 | 25.82 | · | 15.8 | · |
+
+## hu: nlhe-x (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqpost | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqpost | 3000 | 37.32 | · | 19.3 | · |
+| eqhu | 3000 | 37.07 | -0.25 ± 1.23 | 19.9 | +0.7 |
+
+## eqplo2: plo (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs eqplo | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqplo_bluff | 1100 | 31.52 | +0.05 ± 0.95 | 5.3 | +0.4 |
+| eqplo | 1100 | 31.46 | · | 4.9 | · |
+| eqplo_loose | 1050 | 30.36 | -1.20 ± 1.98 | 5.7 | +0.9 |
 
