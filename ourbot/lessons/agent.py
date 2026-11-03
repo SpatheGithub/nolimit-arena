@@ -17,6 +17,12 @@ measure what it adds or costs:
   top-40% hand. Flat-calling steals lost 0.3-0.6 bb per steal faced.
 - respect: postflop, fold one pair or worse to a raise, and to a turn or river
   bet of at least 0.7 pot, unless the hand has a strong draw.
+- chipev: value shoves and all-in calls in chips until 4 or fewer players are
+  left, then by ICM. Optimise P(1st), not survival. The lab found ICM-throughout
+  wins too few tables.
+
+The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
+shove20 is off, because it cost about 1.2 points per table in hold'em.
 
 All other play is icm_pushfold's: shoves and all-in calls compare
 Malmuth-Harville equity under the points table, and deeper play is the shared
@@ -33,11 +39,13 @@ from ._common import PAIR, Spot, act_allin, act_discard, act_fold, features
 from ._strategy import Reads, TagCore, icm_hero
 
 FUTURE_HANDS = 3
-SWITCHES = ("resteal", "shove20", "noflat", "respect")
+ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev")
+DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False}
 
 
 def load_switches() -> dict[str, bool]:
-    on = {k: True for k in SWITCHES}
+    on = dict(DEFAULTS)
     try:
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "switches.json")) as f:
             on.update({k: bool(v) for k, v in json.load(f).items() if k in on})
@@ -93,6 +101,8 @@ class Agent(TagCore):
 
     def icm_matters(self, sp: Spot) -> bool:
         pay = self.payouts(sp.n_alive)
+        if self.on["chipev"] and sp.n_alive > ICM_FROM:
+            return False
         return sp.n_alive >= 3 and max(pay) > min(pay)
 
     def values(self, sp: Spot, rows: list[dict]) -> list[float]:

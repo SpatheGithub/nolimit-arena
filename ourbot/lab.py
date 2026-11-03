@@ -6,6 +6,9 @@
 
 Experiments:
 - switches: our bot's configs (below) on every field.
+- icm: the shipped switches (base), against the same plus chipev, on every
+  field. chipev values shoves and calls in chips until 4 or fewer players are
+  left, then by ICM.
 - bases: candidate starting points on the hold'em field without the two event
   winners. The candidates are our bot's base and best configs, the house tag,
   and each winner's final bot, so no candidate meets its own copy.
@@ -51,12 +54,12 @@ from arena.referee.event import EVENTS_ROOT  # noqa: E402
 from arena.tournament.card import load_card, settings_from_card  # noqa: E402
 from arena.tournament.play import derive  # noqa: E402
 from arena.tournament.tournament import Entry, run_tournament  # noqa: E402
+from ourbot.lessons.agent import DEFAULTS, SWITCHES  # noqa: E402
 
 BOT = os.path.join(HERE, "lessons")
 RUNS = os.path.join(HERE, "runs")
 RESULTS = os.path.join(RUNS, "results.jsonl")
 LAB_MD = os.path.join(HERE, "LAB.md")
-SWITCHES = ("resteal", "shove20", "noflat", "respect")
 LIVE_MARGIN_S = 150
 # field: (events whose latest bots make the field, event whose card is played, bots left out)
 WINNERS = ("full-opus-001/b06/", "full-opus-002/b06/")
@@ -80,9 +83,12 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     """({config: bot dir}, default fields) for an experiment."""
     if experiment == "switches":
         return prepare(configs()), ["nlhe", "shortdeck", "royal"]
+    if experiment == "icm":
+        return prepare({"base": dict(DEFAULTS, chipev=False), "chipev": dict(DEFAULTS, chipev=True)}), \
+            ["nlhe", "shortdeck", "royal"]
     if experiment == "bases":
         ours = prepare({"base": {k: False for k in SWITCHES},
-                        "best": {k: k != "shove20" for k in SWITCHES}})
+                        "best": {k: k in ("resteal", "noflat", "respect") for k in SWITCHES}})
         bots = os.path.join(EVENTS_ROOT, "{}", "bots", "b06", "T6")
         return {**ours, "house_tag": os.path.join(REPO, "arena", "house_bots", "tag"),
                 "winner_e1": bots.format("full-opus-001"), "winner_e2": bots.format("full-opus-002")}, ["nlhe-x"]
@@ -237,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ourbot.lab")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run")
-    p.add_argument("--experiment", default="switches", choices=("switches", "bases"))
+    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)

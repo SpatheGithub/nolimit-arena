@@ -14,7 +14,7 @@ from arena.engine.spec import NLHE
 from arena.tournament.card import make_card, settings_from_card
 from arena.tournament.validate import validate
 from arena.variants.library import BLINDS, POINTS, VARIANTS
-from ourbot.lessons.agent import SWITCHES, LessonReads, load_switches
+from ourbot.lessons.agent import DEFAULTS, SWITCHES, LessonReads, load_switches
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOT = os.path.join(REPO, "ourbot", "lessons")
@@ -29,8 +29,9 @@ def test_lessons_bot_passes_validation(variant):
     assert v["ok"], v["reasons"]
 
 
-def test_switches_default_on_and_load_from_the_package(tmp_path):
-    assert load_switches() == {k: True for k in SWITCHES}  # the shipped switches.json
+def test_switches_load_from_the_package_over_the_defaults(tmp_path):
+    assert set(load_switches()) == set(SWITCHES)
+    assert load_switches() == DEFAULTS  # the shipped switches.json matches the code's defaults
     copy = tmp_path / "bot"
     shutil.copytree(BOT, copy, ignore=shutil.ignore_patterns("__pycache__"))
     (copy / "switches.json").write_text(json.dumps({"resteal": False, "bogus": True}))
@@ -40,7 +41,7 @@ def test_switches_default_on_and_load_from_the_package(tmp_path):
     sys.modules["ourbot_copy"] = pkg
     spec.loader.exec_module(pkg)
     agent = importlib.import_module("ourbot_copy.agent")
-    assert agent.load_switches() == {"resteal": False, "shove20": True, "noflat": True, "respect": True}
+    assert agent.load_switches() == {**DEFAULTS, "resteal": False}  # unknown keys are ignored
 
 
 def test_reads_count_an_openers_fold_to_a_three_bet():
