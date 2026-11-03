@@ -90,6 +90,28 @@ of shortdeck-001 and shortdeck-002, as they stood when the run reached short dec
 1. The `bases` experiment: score our base and best configs, the house tag, and each hold'em winner's final bot on the same pool, the hold'em field minus the two winners. That measures the gap.
 2. Then ICM against chip EV.
 
+### 2026-11-03 05:40: does build time make stronger bots? (short deck, both runs pooled)
+
+shortdeck-002 reran shortdeck-001 with the same seed, slots and starting ideas, with its
+builders awake: 0 minutes lost against 109 of 138. I pooled both runs' final bots in one
+tournament on the short deck card: 16 bots, 1,000 iterations, seed 20261103, 2 workers.
+The script is `cross_event.py <card_event> <event_a> <event_b> [iterations]`, kept in the
+session scratchpad. Its core is `run_tournament(archived_bots("event:a,b"), ...)`.
+
+- **Awake builds are stronger, by about 1.2 points per table.** The awake run's bots averaged 22.23 points per table and the asleep run's 21.02, roughly ±1.1. Build time helps, but modestly.
+- **The effect is very uneven by slot:**
+  - b06 (math_core) went from 20.1 to **26.2**, the strongest bot of all 16.
+  - b02 (model_pressure), the asleep run's winner, scored 25.2, level with its awake rerun (25.2).
+  - b05 (math_core) got *worse* with more time, from 22.0 to 18.8.
+
+  The builder's path matters more than the minutes.
+- **The ranking is real:** pooled against both runs, the awake run's top two, b06 and b02, are the top two of all 16.
+
+**Event result** (shortdeck-002, top_heavy): b06 math_core 533.3 (P(1st) 97%), b02 model_pressure
+500.3, then b08, b07 and b04, all free choice. The bottom three were b01 (free), b05 (math_core)
+and b03 (model_pressure). The same five bots made the top five in both runs, partly because the
+seed shares every deal and seating.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
@@ -100,7 +122,7 @@ of shortdeck-001 and shortdeck-002, as they stood when the run reached short dec
 | shortdeck-001 | short deck, top_heavy | b02 (model_pressure) | 99% | 109 of 138 min asleep |
 | crazy-pineapple-001 | crazy pineapple, standard | b08 (free) | 100% | 130 of 136 min asleep; 5 bots missed T1 |
 | royal-001 | royal, winner_take_most | b05 (math_core) | 87% | build 49 of 60 min asleep |
-| shortdeck-002 | short deck rerun, same seed | running | | awake, on AC |
+| shortdeck-002 | short deck rerun, same seed | b06 (math_core) | 97% | clean; its bots beat 001's by ~1.2 pts/table |
 | crazy-pineapple-002 | crazy pineapple rerun, same seed | queued | | |
 
 **What recurs:**
