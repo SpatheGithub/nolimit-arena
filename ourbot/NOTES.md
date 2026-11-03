@@ -70,6 +70,26 @@ and an average bot wins 12.5% of tables.
 2. Calibrate against a strong base: score event 2's b06 against the same field, minus itself.
 3. Test whether ICM on every shove and call makes the base too survival-minded, since it wins too rarely: chip EV until late, against ICM throughout.
 
+### 2026-11-03 05:15: short deck and royal done (3,000 paired tables per config each)
+
+**Short deck** (top_heavy points 100/45/20/8; field average 21.6 per table). Field: the latest bots
+of shortdeck-001 and shortdeck-002, as they stood when the run reached short deck (002 was mid-event).
+- **Base is about average:** 21.30 points per table, with 11.5% wins.
+- **No lesson helps:** `all` is −0.63 ± 1.45, and `only_noflat` −1.34 ± 1.36, borderline harmful. The best result is `no_noflat` at +0.56 ± 1.42, which is noise.
+
+**Royal** (winner_take_most 100/25/5; field average 16.25). Field: royal-001's 8 final bots.
+- **Base is badly weak:** 11.67 points per table, and only 7.8% wins against 12.5% for an average bot.
+- **The lessons barely touch it.** `only_noflat` changed no decisions at all (+0.00 ± 0.00), `only_respect` almost none, and every config is within 0.3 of base.
+- **Royal is a different game:** 20 cards, T to A, with a 4-card board. Every hand is broadway, and the house postflop strength model, built for a full deck, misjudges hands there.
+
+**Verdict on the lessons so far.** As implemented, none of them gains significantly in any variant.
+- **shove20 is a real flaw in hold'em,** at −1.2 on top of the rest.
+- **Our base is the bigger problem.** It sits below the hold'em builder field and far below the royal one. The debrief lessons are edges for a bot that's already strong. Bolting them onto the house bot doesn't close the gap to the best builders, whose final bots beat the house's best.
+
+**Next:**
+1. The `bases` experiment: score our base and best configs, the house tag, and each hold'em winner's final bot on the same pool, the hold'em field minus the two winners. That measures the gap.
+2. Then ICM against chip EV.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
