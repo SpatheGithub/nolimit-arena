@@ -1,6 +1,6 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 06:58; our bot's code is now 3b9709e3c856.
+Written by `python -m ourbot.lab report` at 2026-11-03 10:11; our bot's code is now 3b9709e3c856.
 Δ is the paired difference from `base` (our bot with every switch off, which is the house icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
@@ -108,4 +108,18 @@ Written by `python -m ourbot.lab report` at 2026-11-03 06:58; our bot's code is 
 | :- | -: | -: | -: | -: | -: |
 | base | 3000 | 25.65 | · | 16.8 | · |
 | calib | 3000 | 24.34 | -1.31 ± 1.62 | 14.4 | -2.4 |
+
+## robust: zoo (bot code 3b9709e3c856)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| shipped | 3000 | 49.58 | +0.35 ± 1.44 | 28.4 | +3.2 |
+| base | 3000 | 49.23 | · | 25.2 | · |
+
+## robust: mixed (bot code 3b9709e3c856)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| shipped | 3000 | 42.48 | +5.71 ± 1.51 | 23.1 | +9.2 |
+| base | 3000 | 36.77 | · | 13.9 | · |
 

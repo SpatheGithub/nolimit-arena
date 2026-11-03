@@ -3,6 +3,30 @@
 Started 2026-11-03 at the user's request: build a bot from everything the events have taught
 so far, and measure whether each lesson actually gains points or introduces a flaw.
 
+## Summary (morning of 2026-11-03)
+
+1. **The lessons do work, once implemented correctly.** The biggest one is to re-shove over a single
+   open at 8–30 bb, priced in chips from how often the opener folds. It adds **+7.5 ± 1.5
+   points per table** in hold'em. Our bot then **ties event 2's winning builder bot** (−0.6 ± 1.7 over
+   the same tables), beats event 1's winner (+3.1), and wins 20% of tables instead of 9%.
+2. **It carries over, with one gap.**
+   - Short deck: +4.6 ± 1.6.
+   - A mixed field of house bots and builders: +5.7.
+   - The house zoo: no backfire.
+   - Royal: no help. Our base is weak there, and that's still open.
+3. **Some lessons failed the test.**
+   - Shove-or-fold at 15–20 bb from late position (event 1 debrief §7) costs about 1.2 points per table.
+   - Pricing everything in chips instead of ICM hurts. Calls need ICM: −0.6 in hold'em, −1.8 in short deck.
+   - Calibrating hand strength for small decks hurt slightly.
+   - No-flat-calls and respecting big bets are worth under a point each.
+4. **The method lesson.** The first build looked useless (+0.25) because of a bug (blind posts
+   counted as acting) and timid pricing. Profiling the behaviour (3-bet rate 4% against the
+   winner's 18%) found both. **Check what the bot actually does before trusting a null result.**
+5. **For the build day:** the variant is secret. This bot is variant-generic. It runs on any
+   community-card variant through the house framework, and its edge (`chipsteal`) is about 40 lines
+   (`ourbot/lessons/agent.py`, `chip_resteal_gains`). The plan is to start from it, then check
+   preflop behaviour with `profile2.py` against the new variant early.
+
 - **Bot:** `ourbot/lessons/` is the house `icm_pushfold` game with four lessons added, each behind a
   switch in `switches.json`. With every switch off it plays exactly like `icm_pushfold`.
 - **Lab:** `python -m ourbot.lab run` plays paired A/B tests against archived builder bots, and
@@ -233,6 +257,18 @@ tables, with `profile2.py` from the session scratchpad.
 - **Royal stays an open problem.** A real fix would need postflop decisions from equity against
   ranges, which is cheap to enumerate with 20 cards, plus looser preflop play in small decks.
   That is a bigger change than one night allows.
+
+### 2026-11-03 ~08:00: robust. The edge holds against other kinds of fields
+
+Our base and the shipped bot each played 3,000 paired tables on the hold'em card.
+
+| Field | Base | Shipped | Δ | Wins: base → shipped |
+| :- | -: | -: | -: | :- |
+| zoo: the 11 house bots (nit, maniac, min-raiser, calling station, random…) | 49.23 | 49.58 | +0.35 ± 1.44 | 25.2% → 28.4% |
+| mixed: zoo + hold'em builder bots minus winners | 36.77 | 42.48 | **+5.71 ± 1.51** | 13.9% → 23.1% |
+
+- **No backfire.** Against loose and odd bots the re-steal neither helps nor hurts, because its tight-table gate keeps it quiet there. Both versions crush the zoo, at about 49 points per table against an average of 31.9.
+- **In a mixed field the edge stays large** (+5.7). It doesn't depend on every opponent being a tight AI-built bot.
 
 ## What has won so far (events)
 
