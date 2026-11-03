@@ -48,6 +48,7 @@ Keep this list current as commands are added.
 - `python -m arena.referee sleep <event-id>` (measures each builder window's sleep from the macOS power log, for events run before the referee added sleep back; the report shows it)
 - `python -m arena.tournament.hands events/<id>/results/T<k> [--team NAME] [--hands 20]` (prints a tournament's compressed hand logs as text)
 - `python -m arena.referee gauntlet <bot_dir> [--field latest|all|event:<id>[,<id>...]]` (scores a bot against archived builder bots; no builders, no spend)
+- `python -m ourbot.lab run [--fields nlhe,shortdeck,royal] [--blocks 60] [--tables 50] [--workers 2]` and `python -m ourbot.lab report` (paired A/B tests of our bot's lesson switches against archived builder bots; waits out a live event's tournaments; notes in `ourbot/NOTES.md`, tables in `ourbot/LAB.md`)
 - `python -m arena.house_bots.sync [--check]` (refreshes each house bot's copies of `_common` and `_strategy`; builders' kits get only `KIT_BOTS`)
 
 Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.

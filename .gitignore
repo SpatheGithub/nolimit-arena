@@ -17,3 +17,8 @@ events/*/submissions/
 events/*/results/*/hands.*
 events/chain.*
 events/*/.isolation_canary
+
+# Our bot: the lab's per-config bot copies and its run log
+ourbot/runs/bots/
+ourbot/runs/lab.out
+ourbot/runs/lab.pid
