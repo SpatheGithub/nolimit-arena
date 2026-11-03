@@ -15,8 +15,9 @@ so far, and measure whether each lesson actually gains points or introduces a fl
    - The house zoo: no backfire.
    - Crazy pineapple: +1.4, once the preflop lessons were limited to two-card deals. Before that they cost 4.0.
    - Royal: about neutral.
-   - **Weak spots:** royal, where the base sits far below the field, and **PLO**, where the house Omaha
-     game wins 0.2% of tables. If the event's variant is Omaha-like, that part needs a real strategy.
+   - **Weak spots:** royal, where the base sits far below the field, and **PLO**.
+     In PLO the house Omaha game had no heads-up mode. Adding one (`plohu`, +0.41) raised table wins from 0.2% to 1.3%.
+     It's still the weakest variant. If the event's variant is Omaha-like, build that strategy fresh.
 3. **Some lessons failed the test.**
    - Shove-or-fold at 15–20 bb from late position (event 1 debrief §7) costs about 1.2 points per table.
    - Pricing everything in chips instead of ICM hurts. Calls need ICM: −0.6 in hold'em, −1.8 in short deck.
