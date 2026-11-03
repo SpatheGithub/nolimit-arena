@@ -6,6 +6,12 @@
 
 Experiments:
 - switches: our bot's configs (below) on every field.
+- v2: after the blind-post bug fix (resteal and noflat never fired from the
+  blinds). Configs: base (all off), v1 (resteal priced by ICM, noflat,
+  respect), chipsteal (resteal priced in chips the way event 2's winner did
+  it), chipsteal without noflat, and chipsteal with chipev. Fields: nlhe-x,
+  with the same blocks and seeds as bases so it pairs with the winners'
+  results there, plus shortdeck and royal.
 - icm: the shipped switches (base), against the same plus chipev, on every
   field. chipev values shoves and calls in chips until 4 or fewer players are
   left, then by ICM.
@@ -83,6 +89,13 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     """({config: bot dir}, default fields) for an experiment."""
     if experiment == "switches":
         return prepare(configs()), ["nlhe", "shortdeck", "royal"]
+    if experiment == "v2":
+        on = dict(DEFAULTS, shove20=False, chipev=False)
+        return prepare({"base": {k: False for k in SWITCHES},
+                        "v1": dict(on, chipsteal=False),
+                        "chipsteal": dict(on, chipsteal=True),
+                        "chipsteal_flat": dict(on, chipsteal=True, noflat=False),
+                        "chipsteal_chipev": dict(on, chipsteal=True, chipev=True)}), ["nlhe-x", "shortdeck", "royal"]
     if experiment == "icm":
         return prepare({"base": dict(DEFAULTS, chipev=False), "chipev": dict(DEFAULTS, chipev=True)}), \
             ["nlhe", "shortdeck", "royal"]
@@ -243,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ourbot.lab")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run")
-    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm"))
+    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm", "v2"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)

@@ -20,6 +20,12 @@ measure what it adds or costs:
 - chipev: value shoves and all-in calls in chips until 4 or fewer players are
   left, then by ICM. Optimise P(1st), not survival. The lab found ICM-throughout
   wins too few tables.
+- chipsteal: price resteal the way event 2's winner (b06) did, in chips. The
+  opener calls with probability 0.45 x its opening width, with the top of its
+  range, and players behind call with 0.7x their calling chart. Shove when the
+  EV beats folding and either the hand is top 10% or the EV is over 0.1 pot.
+  Profiling showed resteal as first built almost never fired: 4.4% 3-bets
+  against b06's 18.1%. Full ICM and a 25% call chance priced it out.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 shove20 is off, because it cost about 1.2 points per table in hold'em.
@@ -40,8 +46,9 @@ from ._strategy import Reads, TagCore, icm_hero
 
 FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
-SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev")
-DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False}
+VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal")
+DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": False}
 
 
 def load_switches() -> dict[str, bool]:
@@ -133,7 +140,8 @@ class Agent(TagCore):
         sp = Spot(obs, var)
         if var.family != "holdem" or var.limit or sp.street > 0:
             return super().decide(obs)
-        if self.on["resteal"] and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and self.resteal_gains(sp):
+        if self.on["resteal"] and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and \
+                (self.chip_resteal_gains(sp) if self.on["chipsteal"] else self.resteal_gains(sp)):
             return act_allin(sp)
         if sp.eff_bb <= self.short_bb:
             return self.short_preflop(sp)
@@ -146,10 +154,11 @@ class Agent(TagCore):
         return a
 
     def single_open(self, sp: Spot) -> bool:
-        """One raise, nobody called it, hero hasn't acted voluntarily, and the opener has chips behind."""
+        """One raise, nobody called it, hero hasn't acted voluntarily (posting a blind or
+        ante isn't acting), and the opener has chips behind."""
         v = sp.raiser
         return (sp.raises == 1 and sp.callers == 0 and v >= 0 and v != sp.me and sp.stacks[v] > 0
-                and not any(h[0] == 0 and h[1] == sp.me for h in sp.hist))
+                and not any(h[0] == 0 and h[1] == sp.me and h[2] in VOLUNTARY for h in sp.hist))
 
     def resteal_gains(self, sp: Spot) -> bool:
         """Does an all-in re-raise over the open beat folding? Players behind may call first, then the opener."""
@@ -183,6 +192,30 @@ class Agent(TagCore):
             ev += nocall * p * (eq * val[2 + 2 * i] + (1 - eq) * val[3 + 2 * i])
             nocall *= 1 - p
         return ev + nocall * val[1] > val[0]
+
+    def chip_resteal_gains(self, sp: Spot) -> bool:
+        """resteal priced in chips the way event 2's winner did it: callers in turn (players
+        behind, then the opener), each calling with probability p and the top p of hands."""
+        r = self.reads
+        v = sp.raiser
+        behind = [s for s in sp.behind if s != v]
+        if r.loose(v) > 0.30 or any(r.loose(s) > 0.30 for s in behind):
+            return False
+        pre = self.var.pre
+        c = pre.best_cls(sp.hole)
+        hero_total = sp.stack + sp.bet
+        callers = [(j, 0.7 * self.call_width(sp, j, 1, min(hero_total, sp.stacks[j] + sp.bets[j]) / sp.bb))
+                   for j in behind]
+        callers.append((v, max(0.04, min(0.5, 0.45 * self.villain_range(sp, v)))))
+        ev, reach = 0.0, 1.0
+        for j, p in callers:
+            eff = min(hero_total, sp.stacks[j] + sp.bets[j])
+            risk, win = eff - sp.bet, sp.pot + eff - sp.bets[j]
+            eq = pre.top(c, p)
+            ev += reach * p * (eq * win - (1 - eq) * risk)
+            reach *= 1 - p
+        ev += reach * sp.pot
+        return ev > 0 and (pre.pct[c] <= 0.10 or ev > 0.1 * sp.pot)
 
     def postflop(self, sp: Spot) -> dict:
         if self.on["respect"] and sp.to_call > 0:

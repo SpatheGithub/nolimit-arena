@@ -44,6 +44,19 @@ def test_switches_load_from_the_package_over_the_defaults(tmp_path):
     assert agent.load_switches() == {**DEFAULTS, "resteal": False}  # unknown keys are ignored
 
 
+def test_the_blinds_can_face_a_single_open():
+    # 2026-11-03 bug: the blinds' own "sb"/"bb" posts counted as acting, so resteal and noflat
+    # never fired from the blinds, the main spot for defending against steals
+    from types import SimpleNamespace
+    from ourbot.lessons.agent import Agent
+    hist = [[0, 6, "sb", 10], [0, 7, "bb", 20], [0, 3, "fold", 0], [0, 5, "raise", 50]]
+    bb = SimpleNamespace(raises=1, callers=0, raiser=5, me=7, stacks=[2000] * 8, hist=hist)
+    assert Agent.single_open(None, bb)
+    limped = SimpleNamespace(**{**vars(bb), "hist": [[0, 6, "sb", 10], [0, 7, "bb", 20], [0, 7, "check", 0],
+                                                     [0, 5, "raise", 50]]})
+    assert not Agent.single_open(None, limped)  # hero acted voluntarily before the raise
+
+
 def test_reads_count_an_openers_fold_to_a_three_bet():
     r = LessonReads(4)
     payoffs = {"0": 0, "1": -10, "2": -60, "3": 70}
