@@ -42,6 +42,34 @@ event 1's "moderate margin" into "your own calls still need full ICM"), no survi
 - **Smoke test** (royal, one 10-table block per config): the harness works. Ten tables say nothing about the effects.
 - **Full run started:** nlhe, then shortdeck, then royal, with 60 blocks of 50 tables and 2 workers.
 
+### 2026-11-03 03:49: hold'em done (3,000 paired tables per config)
+
+Field: the 16 final bots of events 1 and 2. The field average is 31.9 points per table (255/8),
+and an average bot wins 12.5% of tables.
+
+| Switch | Alone vs base | On top of the rest (all − no_X) |
+| :- | -: | -: |
+| resteal | +0.27 ± 1.08 | +0.25 ± 1.06 |
+| shove20 | −0.21 ± 1.05 | **−1.16 ± 1.08** |
+| noflat | −0.34 ± 0.99 | +0.03 ± 0.99 |
+| respect | −0.20 ± 1.00 | −0.13 ± 1.04 |
+
+- **Our base is below this field.** The house `icm_pushfold` averages 29.68, below the field's 31.9. It wins 9.0% of tables and finishes 4th more often than anywhere else (15.7%). The builders' final bots are stronger than the house's best bot.
+- **The best config is `no_shove20`** (resteal, noflat and respect): +1.41 ± 1.12 points per table, with wins up from 9.0% to 10.2%. Even so, it stays below the field average.
+- **shove20 is a flaw.** Extending first-in shove-or-fold to 15–20 bb in late position costs about 1.2 points on top of the other lessons. That is the event 1 debrief's own §7 item 1 failing the test. It agrees with that debrief's warning about b04's 25 bb push range, which looked good locally and lost in the real field. Off by default from now on.
+- **resteal, the "biggest lever", barely registers here:** +0.25, within noise. Possible reasons:
+  - the base already re-shoves at 15 bb or less, priced by equity, in `short_preflop`;
+  - the tight-table gate or the fold model may leave it rarely firing;
+  - these final bots, the field's best, may fold less to re-steals than the field in general.
+  To check, I'll count how often it fires.
+- **noflat and respect have no measurable effect,** positive or negative.
+- **The toughest opponent is event 2's winner (b06).** With it at the table our mean drops to 27.7; with event 1's b07 or b04, the weakest, it's 31.3.
+
+**Next experiments,** after the shortdeck and royal runs finish, so as not to confound them:
+1. Instrument `resteal`: how often it fires, and its EV margin.
+2. Calibrate against a strong base: score event 2's b06 against the same field, minus itself.
+3. Test whether ICM on every shove and call makes the base too survival-minded, since it wins too rarely: chip EV until late, against ICM throughout.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
