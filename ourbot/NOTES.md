@@ -9,11 +9,14 @@ so far, and measure whether each lesson actually gains points or introduces a fl
    open at 8–30 bb, priced in chips from how often the opener folds. It adds **+7.5 ± 1.5
    points per table** in hold'em. Our bot then **ties event 2's winning builder bot** (−0.6 ± 1.7 over
    the same tables), beats event 1's winner (+3.1), and wins 20% of tables instead of 9%.
-2. **It carries over, with one gap.**
+2. **It carries over to some variants and fields, not all.**
    - Short deck: +4.6 ± 1.6.
    - A mixed field of house bots and builders: +5.7.
    - The house zoo: no backfire.
-   - Royal: no help. Our base is weak there, and that's still open.
+   - Crazy pineapple: +1.4, once the preflop lessons were limited to two-card deals. Before that they cost 4.0.
+   - Royal: about neutral.
+   - **Weak spots:** royal, where the base sits far below the field, and **PLO**, where the house Omaha
+     game wins 0.2% of tables. If the event's variant is Omaha-like, that part needs a real strategy.
 3. **Some lessons failed the test.**
    - Shove-or-fold at 15–20 bb from late position (event 1 debrief §7) costs about 1.2 points per table.
    - Pricing everything in chips instead of ICM hurts. Calls need ICM: −0.6 in hold'em, −1.8 in short deck.
@@ -286,7 +289,9 @@ Our base and the shipped bot each played 3,000 paired tables.
 - **Crazy pineapple: the lessons hurt.** It deals 3 hole cards preflop, but the re-steal prices hands
   with two-card equity tables, so it misjudges both our hand and the openers' ranges. **Fix:** the
   preflop lessons (resteal, shove20, noflat) now apply only when exactly two hole cards are dealt.
-  Hold'em, short deck and royal are unchanged. A re-test on crazy pineapple is running.
+  Hold'em, short deck and royal are unchanged.
+  **Re-test, 3,000 paired tables:** shipped is now **+1.36 ± 1.22** against base, up from −4.03, with 19.9%
+  wins. The remaining gain comes from the postflop `respect` lesson, which still applies after the discard.
 
 ## What has won so far (events)
 
