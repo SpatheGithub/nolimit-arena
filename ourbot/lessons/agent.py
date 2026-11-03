@@ -39,7 +39,16 @@ measure what it adds or costs:
   4-card hands. Open the top 40% late, 22% middle and 15% early. Facing an open,
   call with the top 15% (the big blind defends a late steal with the top 25%)
   and pot-raise with the top 5%. Heads-up flop c-bets go to 85%, and value bets
-  are a little thinner.
+  are a little thinner. The lab measured -1.6 points per table: looser early
+  play only added busts.
+- plohu: heads-up Omaha. The house omaha() has no heads-up mode. Our bot reached
+  heads-up on 13% of PLO tables but won 1.5% of those, because it folded the
+  small blind about 75% of the time and called shoves with the top 9%. Heads-up:
+  - Small blind: raise the top 70%, limp the next 20%; at 12 bb or less, shove
+    the top 70%.
+  - Big blind facing a raise: re-raise the top 15%, call the top 70%; call an
+    all-in with the top 55%.
+  - Postflop: bet more and call wider.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 - shove20 is off: it cost about 1.2 points per table in hold'em.
@@ -66,11 +75,12 @@ from ._strategy import Reads, TagCore, icm_hero
 FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
-SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo")
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo", "plohu")
 DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True,
-            "calib": False, "plo": False}
-# plo_strength at these shares of random 4-card hands, from 20,000 samples
-PLO_TOP = {0.05: 0.682, 0.15: 0.500, 0.22: 0.427, 0.25: 0.405, 0.40: 0.295}
+            "calib": False, "plo": False, "plohu": False}
+# plo_strength at these shares of random 4-card hands (the top x), from 20,000 samples
+PLO_TOP = {0.05: 0.682, 0.08: 0.618, 0.15: 0.500, 0.22: 0.427, 0.25: 0.405, 0.30: 0.361, 0.40: 0.295,
+           0.55: 0.225, 0.70: 0.161, 0.90: 0.093}
 CALIB_SAMPLES = 400
 _OFFSETS: dict[tuple, dict[int, float]] = {}
 
@@ -246,7 +256,45 @@ class Agent(TagCore):
             nocall *= 1 - p
         return ev + nocall * val[1] > val[0]
 
+    def omaha_hu(self, sp: Spot) -> dict:
+        """Heads-up Omaha (plohu): equities run close heads-up, so play most hands."""
+        if sp.street == 0:
+            q = plo_strength(sp.hole) if len(sp.hole) >= 4 else 1.0 - preflop_pct(self.var, sp.hole)
+            commit = sp.to_call >= 0.35 * sp.stack or (sp.raiser >= 0 and sp.stacks[sp.raiser] == 0)
+            if sp.raises == 0:
+                if sp.to_call == 0:
+                    return act_pot(sp, 1.0) if q >= PLO_TOP[0.22] else act_fold(sp)
+                if sp.eff_bb <= 12:
+                    return act_allin(sp) if q >= PLO_TOP[0.70] else act_fold(sp)
+                if q >= PLO_TOP[0.70]:
+                    return act_raise(sp, 3 * sp.bb)
+                return act_call(sp) if q >= PLO_TOP[0.90] else act_fold(sp)
+            if commit:
+                return act_call(sp) if q >= (PLO_TOP[0.55] if sp.raises == 1 else PLO_TOP[0.40]) else act_fold(sp)
+            if sp.raises == 1:
+                if q >= PLO_TOP[0.15]:
+                    return act_pot(sp, 1.0)
+                return act_call(sp) if q >= PLO_TOP[0.70] else act_fold(sp)
+            if q >= PLO_TOP[0.08]:
+                return act_pot(sp, 1.0)
+            return act_call(sp) if q >= PLO_TOP[0.30] else act_fold(sp)
+        s, outs, wet, _ = cat_strength(self.var, sp.hole, sp.board)
+        need = sp.to_call / max(1, sp.pot + sp.to_call)
+        if sp.to_call == 0:
+            if s >= 0.55:
+                return act_pot(sp, 0.7)
+            if sp.last_aggr == sp.me and len(sp.board) == 3 and self.rng.random() < 0.8:
+                return act_pot(sp, 0.5)
+            return act_fold(sp)
+        if s >= 0.85:
+            return act_pot(sp, 1.0)
+        if s >= 0.45 or (s >= 0.30 and need <= 0.30) or self.draw_ok(sp, outs, need):
+            return act_call(sp)
+        return act_fold(sp)
+
     def omaha(self, sp: Spot) -> dict:
+        if self.on["plohu"] and sp.n_alive == 2:
+            return self.omaha_hu(sp)
         if not self.on["plo"]:
             return super().omaha(sp)
         if sp.street == 0:
