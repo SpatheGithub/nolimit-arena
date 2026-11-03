@@ -52,4 +52,4 @@ Keep this list current as commands are added.
 
 Workers default to the performance cores on Apple Silicon: the efficiency cores run bot code about half as fast, which would distort the 1 ms thread-CPU limit.
 
-Run events on AC power. On battery a closed lid sleeps the Mac whatever `caffeinate` asks. The referee adds the slept time back to the window, so the event just takes longer, but a tournament played while the lid is closed may record a few spurious hangs.
+Run events on AC power. On battery a closed lid sleeps the Mac whatever `caffeinate` asks. The referee adds the slept time back to the window, so the event just takes longer, but a tournament played while the lid is closed may record a few spurious hangs. A tournament played on a low battery can also come out differently, since bots that time their own search search less on a slowed CPU.

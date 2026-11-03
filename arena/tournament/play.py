@@ -1,8 +1,11 @@
 """Playing one tournament table inside a worker process.
 
 The table's result depends only on the task (seed, seating, frozen seats),
-the settings and the bots' code; CPU-time substitutions are the one source of
-nondeterminism, and each is recorded in the hand log.
+the settings and the bots' code. Two things can still change a replay:
+CPU-time substitutions, each recorded in the hand log, and bots that budget
+their own search by the clock (perf_counter, thread_time). Those search less
+on a slower or busier machine: shortdeck-002's T1 replayed on AC power gave
+different means from its first run at 2% battery.
 
 Per-decision log record (FIELD_STUDY features):
     [hand, street, seat, action, amount, to_call, pot, eff_bb10, in_hand, alive,
