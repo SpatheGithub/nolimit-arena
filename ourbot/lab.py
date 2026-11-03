@@ -20,6 +20,8 @@ Experiments:
 - variants: our base and the shipped bot in the other variants: plo (where both
   play the house Omaha game, so it measures standing) and crazy (crazy
   pineapple; --fields crazy2 uses the rerun's bots).
+- plo: the shipped switches with plo off (base, the house omaha()) or on, on
+  plo-001's field.
 - calib: the shipped switches with calib off (base) or on, in royal and short
   deck. calib calibrates postflop strength to small decks; on 52-card decks
   the offset is zero. chipev values shoves and calls in chips until 4 or fewer players are
@@ -105,6 +107,8 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     """({config: bot dir}, default fields) for an experiment."""
     if experiment == "switches":
         return prepare(configs()), ["nlhe", "shortdeck", "royal"]
+    if experiment == "plo":
+        return prepare({"base": dict(DEFAULTS, plo=False), "plo": dict(DEFAULTS, plo=True)}), ["plo"]
     if experiment == "variants":
         return prepare({"base": {k: False for k in SWITCHES}, "shipped": dict(DEFAULTS)}), ["plo", "crazy"]
     if experiment == "robust":
@@ -282,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run")
     p.add_argument("--experiment", default="switches",
-                   choices=("switches", "bases", "icm", "v2", "calib", "robust", "variants"))
+                   choices=("switches", "bases", "icm", "v2", "calib", "robust", "variants", "plo"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)

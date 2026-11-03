@@ -33,6 +33,13 @@ measure what it adds or costs:
   47-84%. At startup the bot measures the mean strength of random hands for
   each board size in this variant and in standard hold'em, and subtracts the
   difference. On 52-card decks the offset is zero.
+- plo: an Omaha game with thresholds set to what the PLO builders do. The house
+  omaha() opened the top 8-20% and won 0.2% of PLO tables, at 11% VPIP against
+  the field's 23%. The thresholds are percentiles of plo_strength over random
+  4-card hands. Open the top 40% late, 22% middle and 15% early. Facing an open,
+  call with the top 15% (the big blind defends a late steal with the top 25%)
+  and pot-raise with the top 5%. Heads-up flop c-bets go to 85%, and value bets
+  are a little thinner.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 - shove20 is off: it cost about 1.2 points per table in hold'em.
@@ -52,15 +59,18 @@ import random
 
 import numpy as np
 
-from ._common import PAIR, Spot, Variant, act_allin, act_call, act_discard, act_fold, act_pot, features
+from ._common import (PAIR, Spot, Variant, act_allin, act_call, act_discard, act_fold, act_pot, act_raise,
+                      cat_strength, features, plo_strength, preflop_pct)
 from ._strategy import Reads, TagCore, icm_hero
 
 FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
-SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib")
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo")
 DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True,
-            "calib": False}
+            "calib": False, "plo": False}
+# plo_strength at these shares of random 4-card hands, from 20,000 samples
+PLO_TOP = {0.05: 0.682, 0.15: 0.500, 0.22: 0.427, 0.25: 0.405, 0.40: 0.295}
 CALIB_SAMPLES = 400
 _OFFSETS: dict[tuple, dict[int, float]] = {}
 
@@ -235,6 +245,52 @@ class Agent(TagCore):
             ev += nocall * p * (eq * val[2 + 2 * i] + (1 - eq) * val[3 + 2 * i])
             nocall *= 1 - p
         return ev + nocall * val[1] > val[0]
+
+    def omaha(self, sp: Spot) -> dict:
+        if not self.on["plo"]:
+            return super().omaha(sp)
+        if sp.street == 0:
+            q = plo_strength(sp.hole) if len(sp.hole) >= 4 else 1.0 - preflop_pct(self.var, sp.hole)
+            k = len(sp.behind)
+            if sp.eff_bb <= 12:
+                if sp.raises == 0 and q >= (0.33 if k <= 2 else 0.43):
+                    return act_allin(sp)
+                if sp.raises and q >= 0.55:
+                    return act_allin(sp)
+                return act_fold(sp)
+            if sp.raises == 0:
+                if sp.to_call == 0:
+                    return act_pot(sp, 1.0) if q >= PLO_TOP[0.15] else act_fold(sp)
+                if q >= (PLO_TOP[0.40] if k <= 2 else PLO_TOP[0.22] if k <= 4 else PLO_TOP[0.15]):
+                    return act_raise(sp, (3 + sp.callers) * sp.bb)
+                if sp.role == "SB" and q >= PLO_TOP[0.40]:
+                    return act_call(sp)
+                return act_fold(sp)
+            if sp.raises == 1:
+                if q >= PLO_TOP[0.05]:
+                    return act_pot(sp, 1.0)
+                late_steal = sp.role == "BB" and sp.position_of(sp.raiser) <= 2
+                if q >= (PLO_TOP[0.25] if late_steal else PLO_TOP[0.15]) and sp.to_call <= 0.15 * sp.stack:
+                    return act_call(sp)
+                return act_fold(sp)
+            if q >= 0.8:
+                return act_pot(sp, 1.0)
+            if q >= PLO_TOP[0.05] and sp.to_call <= 0.25 * sp.stack:
+                return act_call(sp)
+            return act_fold(sp)
+        s, outs, wet, _ = cat_strength(self.var, sp.hole, sp.board)
+        need = sp.to_call / max(1, sp.pot + sp.to_call)
+        if sp.to_call == 0:
+            if s >= 0.66:
+                return act_pot(sp, 0.7)
+            if sp.last_aggr == sp.me and sp.n_opp == 1 and len(sp.board) == 3 and self.rng.random() < 0.85:
+                return act_pot(sp, 0.5)
+            return act_fold(sp)
+        if s >= 0.88:
+            return act_pot(sp, 1.0)
+        if s >= 0.70 or (s >= 0.40 and need <= 0.25) or self.draw_ok(sp, outs, need):
+            return act_call(sp)
+        return act_fold(sp)
 
     def chip_resteal_gains(self, sp: Spot) -> bool:
         """resteal priced in chips the way event 2's winner did it: callers in turn (players
