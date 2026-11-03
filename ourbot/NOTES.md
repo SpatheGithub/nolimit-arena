@@ -131,6 +131,41 @@ Five candidates, each over the same 3,000 tables against the hold'em pool minus 
   1. The `icm` experiment, running now: does chip EV make our bot win more?
   2. Use event 2's winner as a base, and test our lessons as changes to *it*.
 
+### 2026-11-03 06:05: why resteal didn't register. A bug, and timid pricing
+
+I profiled the bots at shared tables with hand logs, using the reports' own spot definitions
+(`arena/tournament/profile.py`). The script is `profile_bots.py <log_dir> <iterations> NAME=DIR ...`,
+in the session scratchpad. It seats the candidates with field bots and prints steal, fold-vs-steal,
+3-bet rate, 3-bets and shoves per 100 hands, and c-bet.
+
+| Bot (shared tables) | 3-bets an open | 3-bets/100 | Folds to a steal | Points |
+| :- | -: | -: | -: | -: |
+| our best, as first built | 4.4% | 1.9 | 82% | 29.4 |
+| event 2's winner | 18.1% | 7.6 | 55% | 43.5 |
+| **fixed, ICM-priced (v1)** | 9.7% | 4.1 | 72% | 32.7 |
+| **fixed, chip-priced (chipsteal)** | **17.1%** | **7.1** | **62%** | **37.2** |
+| event 2's winner (same tables as the two fixed rows) | 16.8% | 6.9 | 56% | 39.0 |
+
+The points for the last three rows come from 400 tables. They're indicative only.
+
+1. **A bug.** The hand history holds the blinds' own `sb`/`bb` posts. `single_open` counted them as
+   hero having acted, so **resteal and noflat never fired from the blinds**, where most steal
+   defense happens. That is why noflat changed nothing in royal. Fixed in commit ed1c8d2, with a
+   regression test. The `switches` results for resteal and noflat measured the broken version,
+   so ignore them. shove20 and respect weren't affected.
+2. **Timid pricing.** Even outside the blinds, resteal priced each shove with full ICM and a 25%
+   chance that the opener calls, so it rarely cleared the bar. Event 2's winner prices it in chips,
+   with the opener calling with probability 0.45 × its opening width. That is about 9–12% for a
+   late open, close to the field's actual folds to shoves. That's now the `chipsteal` switch.
+
+With both fixes the bot re-steals like the winner. The `v2` experiment, started 06:03, measures it
+on 3,000 paired tables per config: nlhe-x with the same blocks and seeds as `bases`, so it pairs with
+the winners' results, plus shortdeck and royal. The configs are base, v1, chipsteal, chipsteal
+without noflat, and chipsteal with chipev.
+
+**Lesson about the lessons:** a lesson can test as useless because the code never carries it out.
+Profile the behaviour before trusting a null result.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
