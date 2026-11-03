@@ -112,6 +112,25 @@ session scratchpad. Its core is `run_tournament(archived_bots("event:a,b"), ...)
 and b03 (model_pressure). The same five bots made the top five in both runs, partly because the
 seed shares every deal and seating.
 
+### 2026-11-03 05:35: bases. How far are we from the best builders? (hold'em)
+
+Five candidates, each over the same 3,000 tables against the hold'em pool minus both events' winners
+(14 bots), so no candidate met its own copy.
+
+| Candidate | Points/table | Δ vs our base | Wins | 1st / 2nd / 7th / 8th |
+| :- | -: | -: | -: | :- |
+| event 2 winner (b06, math_core) | **38.25** | **+8.20 ± 1.61** | 21.2% | 21 / 14 / 13 / 16% |
+| event 1 winner (b06, opponent model) | 34.55 | +4.50 ± 1.52 | 16.3% | 16 / 13 / 14 / 11% |
+| our best (resteal, noflat, respect) | 31.04 | +1.00 ± 1.13 | 10.1% | 10 / 13 / 11 / 10% |
+| our base (house icm_pushfold) | 30.05 | · | 9.2% | 9 / 13 / 11 / 10% |
+| house tag | 29.42 | −0.62 ± 1.15 | 7.7% | 8 / 13 / 10 / 10% |
+
+- **The gap is 8 points per table, and the lessons close 1 of them.** Event 2's winner scores 27% more than our base.
+- **The winners win tables and accept busts.** Event 2's b06 finishes 1st in 21% and 8th in 16% of tables, with few middle places. That is "optimise P(1st), not survival" in the data. Our bots peak at 4th and 5th.
+- **Implication for the real event.** The add-on lessons are worth a point. The rest of the winner's edge comes from a whole bot built and tested around pressure and P(1st). Two follow-ups:
+  1. The `icm` experiment, running now: does chip EV make our bot win more?
+  2. Use event 2's winner as a base, and test our lessons as changes to *it*.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |

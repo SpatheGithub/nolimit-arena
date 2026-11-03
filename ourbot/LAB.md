@@ -1,6 +1,6 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 05:13; our bot's code is now c76897b029af.
+Written by `python -m ourbot.lab report` at 2026-11-03 05:34; our bot's code is now 0e22d33528b6.
 Δ is the paired difference from `base` (our bot with every switch off, which is the house icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
@@ -47,4 +47,21 @@ Written by `python -m ourbot.lab report` at 2026-11-03 05:13; our bot's code is 
 | all | 3000 | 11.38 | -0.30 ± 0.94 | 7.7 | -0.1 |
 | no_noflat | 3000 | 11.38 | -0.30 ± 0.94 | 7.7 | -0.1 |
 | no_respect | 3000 | 11.35 | -0.32 ± 0.94 | 7.7 | -0.1 |
+
+## bases: nlhe-x (bot code c76897b029af)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| winner_e2 | 3000 | 38.25 | +8.20 ± 1.61 | 21.2 | +12.0 |
+| winner_e1 | 3000 | 34.55 | +4.50 ± 1.52 | 16.3 | +7.2 |
+| best | 3000 | 31.04 | +1.00 ± 1.13 | 10.1 | +0.9 |
+| base | 3000 | 30.05 | · | 9.2 | · |
+| house_tag | 3000 | 29.42 | -0.62 ± 1.15 | 7.7 | -1.5 |
+
+## icm: nlhe (bot code 0e22d33528b6)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| chipev | 150 | 36.80 | +6.73 ± 5.54 | 17.3 | +8.0 |
+| base | 150 | 30.07 | · | 9.3 | · |
 
