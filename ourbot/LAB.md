@@ -1,7 +1,7 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 11:53; our bot's code is now b90b30d58057.
-Δ is the paired difference from `base` (our bot with every switch off, which is the house icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's points table; a win is 1st at the table.
+Written by `python -m ourbot.lab report` at 2026-11-03 16:13; our bot's code is now 875318dbca47.
+Δ is the paired difference from the control over the same tables, with a 95% interval: `base` (our bot with every switch off, which is the house icm_pushfold) where the experiment has it, else `shipped` (the shipped switches). Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
 
@@ -171,4 +171,48 @@ Written by `python -m ourbot.lab report` at 2026-11-03 11:53; our bot's code is 
 | :- | -: | -: | -: | -: | -: |
 | base | 3000 | 27.54 | · | 13.5 | · |
 | resteal3 | 3000 | 26.97 | -0.57 ± 1.51 | 16.1 | +2.6 |
+
+## eq: royal (bot code 9f5a69e88adb)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqpost | 3000 | 13.48 | +2.41 ± 1.37 | 9.7 | +1.9 |
+| shipped | 3000 | 11.07 | · | 7.8 | · |
+
+## eq: shortdeck (bot code 9f5a69e88adb)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqpost | 3000 | 26.21 | +1.59 ± 1.71 | 16.1 | +0.8 |
+| shipped | 3000 | 24.63 | · | 15.3 | · |
+
+## eq: nlhe-x (bot code 9f5a69e88adb)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqpost | 3000 | 37.65 | +0.57 ± 1.51 | 20.1 | +0.5 |
+| shipped | 3000 | 37.08 | · | 19.7 | · |
+
+## eqplo: plo (bot code 088e044e06a8)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqplo_loose | 3000 | 30.01 | +3.51 ± 1.11 | 6.3 | +5.0 |
+| eqplo | 3000 | 30.00 | +3.50 ± 0.92 | 3.5 | +2.2 |
+| shipped | 3000 | 26.50 | · | 1.3 | · |
+
+## eqcrazy: crazy2 (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| eqboth | 3000 | 29.15 | +2.44 ± 1.50 | 13.7 | +1.5 |
+| eqpost | 3000 | 28.76 | +2.06 ± 1.47 | 13.8 | +1.6 |
+| shipped | 3000 | 26.70 | · | 12.2 | · |
+
+## wide: royal (bot code 875318dbca47)
+
+| Config | Tables | Points | Δ vs shipped | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| wide | 800 | 11.75 | +0.55 ± 2.49 | 9.2 | +1.0 |
+| shipped | 850 | 11.41 | · | 8.5 | · |
 

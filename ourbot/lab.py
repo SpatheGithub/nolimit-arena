@@ -116,6 +116,28 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     if experiment == "resteal3":
         return prepare({"base": dict(DEFAULTS, resteal3=False), "resteal3": dict(DEFAULTS, resteal3=True)}), \
             ["crazy2"]
+    if experiment == "eq":
+        return prepare({"shipped": dict(DEFAULTS), "eqpost": dict(DEFAULTS, eqpost=True)}), \
+            ["royal", "shortdeck", "nlhe-x"]
+    if experiment == "eqplo":
+        return prepare({"shipped": dict(DEFAULTS), "eqplo": dict(DEFAULTS, eqplo=True),
+                        "eqplo_loose": dict(DEFAULTS, eqplo=True, plo=True)}), ["plo"]
+    if experiment == "eq2":
+        eq = dict(DEFAULTS, eqpost=True)
+        return prepare({"eqpost": eq, "eqbluff": dict(eq, eqbluff=True), "eqwide": dict(eq, wide=True)}), \
+            ["royal", "shortdeck", "nlhe-x"]
+    if experiment == "hu":
+        eq = dict(DEFAULTS, eqpost=True)
+        return prepare({"eqpost": eq, "eqhu": dict(eq, hu=True)}), ["royal", "shortdeck", "nlhe-x"]
+    if experiment == "eqplo2":
+        eq = dict(DEFAULTS, eqplo=True)
+        return prepare({"eqplo": eq, "eqplo_bluff": dict(eq, eqbluff=True), "eqplo_loose": dict(eq, plo=True)}), \
+            ["plo"]
+    if experiment == "wide":
+        return prepare({"shipped": dict(DEFAULTS), "wide": dict(DEFAULTS, wide=True)}), ["royal", "shortdeck"]
+    if experiment == "eqcrazy":
+        return prepare({"shipped": dict(DEFAULTS), "eqpost": dict(DEFAULTS, eqpost=True),
+                        "eqboth": dict(DEFAULTS, eqpost=True, eqdisc=True)}), ["crazy2"]
     if experiment == "plohu":
         return prepare({"base": dict(DEFAULTS, plohu=False), "plohu": dict(DEFAULTS, plohu=True)}), ["plo"]
     if experiment == "variants":
@@ -259,20 +281,22 @@ def report() -> str:
     lines = ["# Lab results", "",
              f"Written by `python -m ourbot.lab report` at {time.strftime('%Y-%m-%d %H:%M')}; "
              f"our bot's code is now {code_hash()}.",
-             "Δ is the paired difference from `base` (our bot with every switch off, which is the house "
-             "icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's "
-             "points table; a win is 1st at the table.", ""]
+             "Δ is the paired difference from the control over the same tables, with a 95% interval: `base` "
+             "(our bot with every switch off, which is the house icm_pushfold) where the experiment has it, "
+             "else `shipped` (the shipped switches). Points are per table, under each field's points table; "
+             "a win is 1st at the table.", ""]
     for (experiment, field, code), by_cfg in data.items():
-        base = by_cfg.get("base", {})
+        ref = next((c for c in ("base", "shipped", "eqpost", "eqplo") if c in by_cfg), "base")
+        base = by_cfg.get(ref, {})
         lines += [f"## {experiment}: {field} (bot code {code})", "",
-                  "| Config | Tables | Points | Δ vs base | Win % | Δ win % |", "| :- | -: | -: | -: | -: | -: |"]
+                  f"| Config | Tables | Points | Δ vs {ref} | Win % | Δ win % |", "| :- | -: | -: | -: | -: | -: |"]
         rows = []
         for name, cell in by_cfg.items():
             n = len(cell)
             mean = sum(p for p, _ in cell.values()) / n
             win = 100 * sum(w for _, w in cell.values()) / n
             common = [k for k in cell if k in base]
-            if name != "base" and len(common) > 1:
+            if name != ref and len(common) > 1:
                 d = [cell[k][0] - base[k][0] for k in common]
                 dw = [100 * (cell[k][1] - base[k][1]) for k in common]
                 md = sum(d) / len(d)
@@ -296,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("run")
     p.add_argument("--experiment", default="switches",
                    choices=("switches", "bases", "icm", "v2", "calib", "robust", "variants", "plo", "plohu",
-                            "resteal3"))
+                            "resteal3", "eq", "eqcrazy", "wide", "eqplo", "eq2", "hu", "eqplo2"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)

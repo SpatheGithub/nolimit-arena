@@ -370,6 +370,89 @@ That's the winners' trade: more 1st places, more busts. Under 100/60/40/… they
 **Ships off.** Turn it on for a three-card variant if the announced points table is top-heavy or
 winner-take-most, where the extra wins should outweigh the busts. That's untested; check it on the day.
 
+### 2026-11-03 15:45: equity-based postflop play (eqpost). The gain grows as the deck shrinks
+
+**Why:** royal stayed far below its field, and the diagnosis pointed at postflop. The house strength
+scale was tuned on 52 cards, while the royal and short deck winners decided by equity against ranges.
+
+**What** (`ourbot/lessons/equity.py`, numpy, works for any deck and ranking):
+- **Hand values:** two lookups, built at the first table (0.4 s for 52 cards):
+  - the best unsuited five of every rank multiset of 5–7 cards, found with `np.searchsorted` over base-5 keys;
+  - the best suited five by rank mask.
+
+  They equal the engine's values on 3,000 random hands in each variant.
+- **Ranges:** the top share of two-card combos by preflop percentile. That share is the raiser's PFR, a caller's VPIP, or all hands for a checked big blind.
+  - Each postflop action narrows it to the combos with the best made hands on the board. A half-pot bet keeps 50%, a raise 35%, a call 80%.
+  - Aggressive seats narrow less.
+- **Equity:** Monte Carlo. Each sample deals every opponent a combo from its range and completes the board.
+  Samples with clashing cards are dropped, which keeps the joint distribution exact. At 40,000
+  samples it matches exact enumeration within 0.001.
+- **Speed:** 40–150 samples per call, fewer when each sample evaluates more hands, and half as
+  many once a decision has used 0.25 ms. Numpy is warmed up at init.
+  - In validation: p99 ≤ 0.5 ms, max 0.73 ms against the 1 ms limit.
+  - 2 timeouts in 9,000 lab tables.
+- **Play** (`eq_postflop`):
+  - Bet for value at 60%+ heads-up, plus 7 points per extra opponent.
+  - C-bet heads-up flops 65% of the time as the preflop raiser.
+  - Call when equity × realization (0.88 out of position, 0.95 in position, 1.0 on the river) beats the price plus 2%.
+  - Raise at 72%+, or 80%+ on the last street.
+  - Stack-committing calls go through ICM `values()` as before.
+
+**Results:** shipped vs shipped + eqpost, 3,000 paired tables each.
+
+| Field | Deck | Shipped | + eqpost | Δ | Wins |
+| :- | -: | -: | -: | -: | :- |
+| royal (winner_take_most, average 16.25) | 20 | 11.07 | **13.48** | **+2.41 ± 1.37** | 7.8% → 9.7% |
+| short deck (top_heavy, average 21.6) | 36 | 24.63 | 26.21 | +1.59 ± 1.71 | 15.3% → 16.1% |
+| hold'em builders minus winners (average 31.9) | 52 | 37.08 | 37.65 | +0.57 ± 1.51 | 19.7% → 20.1% |
+
+- **Equity play helps most where the deck is small:** +2.4 in royal (significant), +1.6 in short deck, +0.6 in hold'em.
+  The average over the three is +1.5 ± 0.9. It never hurt.
+- **Royal improves, but is still below its field** (13.5 against 16.25). Wider preflop play and heads-up play are the next suspects.
+- **For build day:** if the variant changes the deck or the hand rules, don't trust a hand-strength
+  heuristic tuned on hold'em. Build an equity engine like this one first. It's about 200 lines of
+  numpy, and it fits in the 1 ms limit with a sample budget.
+
+### 2026-11-03 16:05: PLO by equity (eqplo). The weakest variant gains +3.5 points per table
+
+**What:** `equity.OmahaEquity` applies the same idea to Omaha's "exactly 2 of 4 hole cards and 3 of 5 board cards".
+- **Values:** one table indexed by the hole part's and the board part's rank multisets (91 × 455), plus flush lookups only where a suit can flush. These equal the engine's values on 2,000 random hands.
+- **Ranges:** the top share of a fixed bank of 20,000 random hands sorted by `plo_strength`, narrowed by made hand after postflop bets and calls.
+- **Speed:** a heads-up equity takes 0.19 ms at 70 samples.
+- **Play:** postflop goes through the same `eq_postflop`. Preflop stays the house game, plus `plohu` heads-up.
+
+**Results:** 3,000 paired tables, PLO field (plo-001's bots, standard points, average 31.9).
+
+| Config | Points | Δ vs shipped | Wins |
+| :- | -: | -: | :- |
+| shipped (house Omaha + plohu) | 26.50 | · | 1.3% |
+| **eqplo** | 30.00 | **+3.50 ± 0.92** | 3.5% |
+| eqplo + looser preflop (`plo`) | 30.01 | +3.51 ± 1.11 | **6.3%** |
+
+- **The biggest single gain in the lab so far.** The old Omaha postflop used fixed thresholds on a rough strength scale. Equity against ranges fixes most of the gap to the field: 30.0 against 31.9.
+- **Looser preflop now helps wins, not points.** Before eqplo, `plo` cost 1.6 points. With equity postflop it is neutral on points and almost doubles table wins (3.5% → 6.3%). Under a top-heavy points table that should turn into points, so turn it on if the day's table rewards 1st place.
+- **Timeouts, and a lab rule.** eqplo recorded 156 timeouts and the loose config 200, almost all in blocks 18–43 (15:47–15:55). That is when I was profiling PLO on the same cores, which pushed the lab's workers onto the efficiency cores. Before and after, the count is zero, even through a 4-minute sleep with the lid closed.
+  - Each timeout folds or checks, so the deltas above include their cost. The real effect is, if anything, larger.
+  - Multiway pots also did too much range work per opponent. That work is now split across opponents (`budget`).
+  - **Rule: never run heavy jobs alongside the lab.**
+- **Follow-up queued** (`eqplo2`): eqplo against eqplo with river bluffs and against eqplo with looser preflop, with the budget fix and an idle machine.
+
+### 2026-11-03 16:15: crazy pineapple by equity (eqpost, eqdisc)
+
+3,000 paired tables against the awake rerun's bots (crazy-pineapple-002, standard points, average 31.9).
+With three hole cards on the flop, hero's equity is that of the best pair to keep.
+
+| Config | Points | Δ vs shipped | Wins |
+| :- | -: | -: | :- |
+| shipped | 26.70 | · | 12.2% |
+| eqpost | 28.76 | **+2.06 ± 1.47** | 13.8% |
+| **eqpost + eqdisc** (discard by equity against a 60% range) | 29.15 | **+2.44 ± 1.50** | 13.7% |
+
+- **Equity play closes about half the gap to this strong field** (29.2 against 31.9).
+- **The equity discard adds about +0.4 on top.** That's within noise, but it costs nothing. On.
+- eqpost's 29 timeouts all came in one block (16:02) that also recorded 6 decisions over 50 ms of wall time.
+  There was no sleep event, so it was a system hiccup. eqboth had none.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
