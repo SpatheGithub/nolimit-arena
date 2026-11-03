@@ -13,7 +13,10 @@ Experiments:
   with the same blocks and seeds as bases so it pairs with the winners'
   results there, plus shortdeck and royal.
 - icm: the shipped switches (base), against the same plus chipev, on every
-  field. chipev values shoves and calls in chips until 4 or fewer players are
+  field.
+- calib: the shipped switches with calib off (base) or on, in royal and short
+  deck. calib calibrates postflop strength to small decks; on 52-card decks
+  the offset is zero. chipev values shoves and calls in chips until 4 or fewer players are
   left, then by ICM.
 - bases: candidate starting points on the hold'em field without the two event
   winners. The candidates are our bot's base and best configs, the house tag,
@@ -89,6 +92,9 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     """({config: bot dir}, default fields) for an experiment."""
     if experiment == "switches":
         return prepare(configs()), ["nlhe", "shortdeck", "royal"]
+    if experiment == "calib":
+        return prepare({"base": dict(DEFAULTS, calib=False), "calib": dict(DEFAULTS, calib=True)}), \
+            ["royal", "shortdeck"]
     if experiment == "v2":
         on = dict(DEFAULTS, shove20=False, chipev=False)
         return prepare({"base": {k: False for k in SWITCHES},
@@ -256,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ourbot.lab")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run")
-    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm", "v2"))
+    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm", "v2", "calib"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)

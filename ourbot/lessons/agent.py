@@ -26,6 +26,13 @@ measure what it adds or costs:
   EV beats folding and either the hand is top 10% or the EV is over 0.1 pot.
   Profiling showed resteal as first built almost never fired: 4.4% 3-bets
   against b06's 18.1%. Full ICM and a 25% call chance priced it out.
+- calib: calibrate postflop hand strength to the variant. The house strength
+  scale was tuned on a 52-card deck. In royal (T to A only) every 6-card hand
+  holds at least a pair, so a pair is the weakest hand, yet the bot called
+  like it was decent: it folded 28% to c-bets against the royal field's
+  47-84%. At startup the bot measures the mean strength of random hands for
+  each board size in this variant and in standard hold'em, and subtracts the
+  difference. On 52-card decks the offset is zero.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 - shove20 is off: it cost about 1.2 points per table in hold'em.
@@ -41,17 +48,46 @@ arena/house_bots/_common.py and _strategy.py with their data files.
 
 import json
 import os
+import random
 
 import numpy as np
 
-from ._common import PAIR, Spot, act_allin, act_discard, act_fold, features
+from ._common import PAIR, Spot, Variant, act_allin, act_call, act_discard, act_fold, act_pot, features
 from ._strategy import Reads, TagCore, icm_hero
 
 FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
-SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal")
-DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True}
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib")
+DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True,
+            "calib": False}
+CALIB_SAMPLES = 400
+_OFFSETS: dict[tuple, dict[int, float]] = {}
+
+
+def strength_offsets(var) -> dict[int, float]:
+    """{board size: this variant's mean postflop strength of random hands minus standard hold'em's},
+    computed once per variant and process from fixed seeds. Empty for 52-card decks."""
+    key = (var.ranks, var.board_count, len(var.deck), var.hole_count)
+    if key not in _OFFSETS:
+        if len(var.deck) == 52 or var.family != "holdem":
+            _OFFSETS[key] = {}
+        else:
+            def means(v) -> dict[int, float]:
+                rng = random.Random(20261103)
+                out = {}
+                for nb in range(3, max(5, var.board_count) + 1):
+                    if nb > v.board_count:
+                        break
+                    tot = 0.0
+                    for _ in range(CALIB_SAMPLES):
+                        cards = rng.sample(v.deck, 2 + nb)
+                        tot += features(v, cards[:2], cards[2:])[0]
+                    out[nb] = tot / CALIB_SAMPLES
+                return out
+            mine, std = means(var), means(Variant(None))
+            _OFFSETS[key] = {nb: m - std[nb] for nb, m in mine.items() if nb in std}
+    return _OFFSETS[key]
 
 
 def load_switches() -> dict[str, bool]:
@@ -102,6 +138,7 @@ class Agent(TagCore):
         super().__init__(config)
         self.reads = LessonReads(int(config.get("seats", 8)))
         self.on = load_switches()
+        self.offsets = strength_offsets(self.var) if self.on["calib"] else {}
 
     # icm_pushfold's ICM game (arena/house_bots/icm_pushfold/agent.py)
 
@@ -221,10 +258,42 @@ class Agent(TagCore):
         return ev > 0 and (pre.pct[c] <= 0.10 or ev > 0.1 * sp.pot)
 
     def postflop(self, sp: Spot) -> dict:
-        if self.on["respect"] and sp.to_call > 0:
-            s, outs, _, cat = features(self.var, sp.hole, sp.board)
-            if cat <= PAIR and s < 0.9 and outs < 8:
-                big = len(sp.board) >= 4 and sp.to_call >= 0.7 * max(1.0, sp.pot - sp.to_call)
-                if sp.raises >= 2 or big:
-                    return act_fold(sp)
-        return super().postflop(sp)
+        s, outs, wet, cat = features(self.var, sp.hole, sp.board)
+        s -= self.offsets.get(len(sp.board), 0.0)
+        if self.on["respect"] and sp.to_call > 0 and cat <= PAIR and s < 0.9 and outs < 8:
+            big = len(sp.board) >= 4 and sp.to_call >= 0.7 * max(1.0, sp.pot - sp.to_call)
+            if sp.raises >= 2 or big:
+                return act_fold(sp)
+        return self.tag_postflop(sp, s, outs, wet)
+
+    def tag_postflop(self, sp: Spot, s: float, outs: int, wet: bool) -> dict:
+        """TagCore.postflop with the strength passed in (so calib can shift it)."""
+        if sp.n_opp > 1 and s < 0.85:
+            s -= 0.05 * (sp.n_opp - 1)
+        rng = self.rng
+        flop = len(sp.board) == 3
+        stations = any(self.reads.vpip_rate(o) > 0.45 for o in sp.opps)
+        if sp.to_call == 0:
+            if s >= (0.62 if sp.last_street else 0.58) - (0.05 if stations else 0.0):
+                return act_pot(sp, 0.8 if stations else 0.75 if wet else 0.6)
+            if sp.last_aggr == sp.me and not sp.last_street:
+                if flop and sp.n_opp <= 2 and (s >= 0.3 or outs >= 4 or not stations) \
+                        and rng.random() < (0.45 if wet else 0.65) / sp.n_opp:
+                    return act_pot(sp, 0.5 if wet else 0.4)
+                if not flop and sp.n_opp == 1 and (s >= 0.5 or outs >= 8) and rng.random() < 0.5:
+                    return act_pot(sp, 0.6)
+            if outs >= 8 and not sp.last_street and rng.random() < 0.35:
+                return act_pot(sp, 0.55)
+            return act_fold(sp)
+        need = sp.to_call / (sp.pot + sp.to_call)
+        if self.aggressive(sp.raiser):
+            s += 0.08
+        raised = sp.raises >= 2 or any(h[0] == sp.street and h[1] == sp.me and h[2] == "raise" for h in sp.hist)
+        if s >= 0.9 or (s >= 0.8 and not raised):
+            return act_pot(sp, 0.9)
+        required = 0.12 + 1.35 * need + (0.12 if raised else 0.0)
+        if sp.to_call >= 0.5 * sp.stack:
+            required += 0.05 * max(0, sp.n_alive - 2) / 6
+        if s >= required or self.draw_ok(sp, outs, need):
+            return act_call(sp)
+        return act_fold(sp)
