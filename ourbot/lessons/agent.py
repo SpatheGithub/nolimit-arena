@@ -28,7 +28,10 @@ measure what it adds or costs:
   against b06's 18.1%. Full ICM and a 25% call chance priced it out.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
-shove20 is off, because it cost about 1.2 points per table in hold'em.
+- shove20 is off: it cost about 1.2 points per table in hold'em.
+- chipsteal is on: with resteal and noflat it scored +7.5 +/- 1.5 points per
+  table in hold'em, level with event 2's winner over the same tables.
+- chipev is off: it was -0.6 on top of chipsteal.
 
 All other play is icm_pushfold's: shoves and all-in calls compare
 Malmuth-Harville equity under the points table, and deeper play is the shared
@@ -48,7 +51,7 @@ FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
 SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal")
-DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": False}
+DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True}
 
 
 def load_switches() -> dict[str, bool]:

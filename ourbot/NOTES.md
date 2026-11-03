@@ -166,6 +166,33 @@ without noflat, and chipsteal with chipev.
 **Lesson about the lessons:** a lesson can test as useless because the code never carries it out.
 Profile the behaviour before trusting a null result.
 
+### 2026-11-03 06:00: v2 hold'em. **Our bot now matches the best builder bot**
+
+3,000 paired tables per config on nlhe-x, with the same blocks and seeds as `bases`, so every config
+also pairs table for table with the winners' recorded results.
+
+| Config | Points/table | Δ vs base | Wins | vs event 2 winner | vs event 1 winner |
+| :- | -: | -: | -: | -: | -: |
+| **chipsteal** (resteal in chips, noflat, respect) | **37.62** | **+7.52 ± 1.48** | **20.4%** | **−0.63 ± 1.70** | +3.06 ± 1.71 |
+| chipsteal + chipev | 37.00 | +6.91 ± 1.50 | 19.8% | −1.24 ± 1.70 | +2.45 ± 1.70 |
+| chipsteal without noflat | 36.88 | +6.78 ± 1.46 | 18.7% | −1.37 ± 1.68 | +2.33 ± 1.68 |
+| v1 (resteal priced by ICM, fixed) | 35.62 | +5.53 ± 1.37 | 15.2% | −2.62 ± 1.66 | +1.07 ± 1.57 |
+| base (house icm_pushfold) | 30.09 | · | 9.3% | −8.15 ± 1.57 | −4.46 ± 1.50 |
+
+- **The re-steal lesson was right, and it's worth 7.5 points per table.** Implemented correctly, it
+  takes the house bot from 8 points behind event 2's winner to level with it (−0.6 ± 1.7), and
+  past event 1's winner.
+- **Where the gain comes from:**
+  - The blind-post fix alone is worth +5.5. That's v1, still priced by ICM.
+  - Chip pricing, the winner's model, adds about +2.0.
+  - noflat adds about +0.7 on top, which is within noise.
+  - chipev is −0.6, also within noise. ICM on calls stays.
+- **Same profile as the winner.** chipsteal now finishes 1st 20.4% / 8th 14.2%; the winner 21.2% / 15.7%.
+- **Sanity check:** the v2 `base` reproduced the earlier `base` to +0.05 ± 1.05 over the same tables.
+- **Shipped defaults now:** resteal, chipsteal, noflat and respect on; shove20 and chipev off.
+
+Short deck and royal for v2 are running next. Does the edge transfer to other variants?
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |

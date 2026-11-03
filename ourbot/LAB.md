@@ -1,6 +1,6 @@
 # Lab results
 
-Written by `python -m ourbot.lab report` at 2026-11-03 05:34; our bot's code is now 0e22d33528b6.
+Written by `python -m ourbot.lab report` at 2026-11-03 06:00; our bot's code is now dddb88a91b08.
 Δ is the paired difference from `base` (our bot with every switch off, which is the house icm_pushfold) over the same tables, with a 95% interval. Points are per table, under each field's points table; a win is 1st at the table.
 
 ## switches: nlhe (bot code c76897b029af)
@@ -62,6 +62,26 @@ Written by `python -m ourbot.lab report` at 2026-11-03 05:34; our bot's code is 
 
 | Config | Tables | Points | Δ vs base | Win % | Δ win % |
 | :- | -: | -: | -: | -: | -: |
-| chipev | 150 | 36.80 | +6.73 ± 5.54 | 17.3 | +8.0 |
-| base | 150 | 30.07 | · | 9.3 | · |
+| chipev | 2500 | 31.00 | +0.26 ± 1.34 | 10.9 | +1.4 |
+| base | 2450 | 30.81 | · | 9.6 | · |
+
+## v2: nlhe-x (bot code 674bd74249cd)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| chipsteal | 3000 | 37.62 | +7.52 ± 1.48 | 20.4 | +11.2 |
+| chipsteal_chipev | 3000 | 37.00 | +6.91 ± 1.50 | 19.8 | +10.5 |
+| chipsteal_flat | 3000 | 36.88 | +6.78 ± 1.46 | 18.7 | +9.4 |
+| v1 | 3000 | 35.62 | +5.53 ± 1.37 | 15.2 | +5.9 |
+| base | 3000 | 30.09 | · | 9.3 | · |
+
+## v2: shortdeck (bot code 674bd74249cd)
+
+| Config | Tables | Points | Δ vs base | Win % | Δ win % |
+| :- | -: | -: | -: | -: | -: |
+| v1 | 200 | 27.69 | +8.26 ± 6.16 | 18.0 | +9.5 |
+| chipsteal | 200 | 26.32 | +6.88 ± 6.22 | 18.0 | +9.5 |
+| chipsteal_flat | 200 | 24.19 | +4.75 ± 6.11 | 14.0 | +5.5 |
+| chipsteal_chipev | 250 | 21.98 | +2.49 ± 5.44 | 13.6 | +5.2 |
+| base | 250 | 19.49 | · | 8.4 | · |
 
