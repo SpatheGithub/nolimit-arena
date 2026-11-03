@@ -52,6 +52,9 @@ measure what it adds or costs:
 
   The lab measured +0.41 +/- 0.15 points per table, with heads-up wins going
   from 2% to 10% of those reached. It's on.
+- resteal3: let resteal (only) fire with three hole cards (crazy pineapple). It
+  splits the -4.0 that resteal, shove20 and noflat cost together there
+  before the two-card gate.
 
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 - shove20 is off: it cost about 1.2 points per table in hold'em.
@@ -78,9 +81,9 @@ from ._strategy import Reads, TagCore, icm_hero
 FUTURE_HANDS = 3
 ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer are left
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
-SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo", "plohu")
+SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo", "plohu", "resteal3")
 DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True,
-            "calib": False, "plo": False, "plohu": True}
+            "calib": False, "plo": False, "plohu": True, "resteal3": False}
 # plo_strength at these shares of random 4-card hands (the top x), from 20,000 samples
 PLO_TOP = {0.05: 0.682, 0.08: 0.618, 0.15: 0.500, 0.22: 0.427, 0.25: 0.405, 0.30: 0.361, 0.40: 0.295,
            0.55: 0.225, 0.70: 0.161, 0.90: 0.093}
@@ -206,7 +209,8 @@ class Agent(TagCore):
         # The preflop lessons price hands with two-card equity tables, so they apply only when two hole
         # cards are dealt: with crazy pineapple's three they cost 4.0 +/- 1.4 points per table.
         two = len(sp.hole) == 2
-        if self.on["resteal"] and two and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and \
+        steal_ok = two or (self.on["resteal3"] and len(sp.hole) == 3)  # resteal3: test the re-steal alone with 3 cards
+        if self.on["resteal"] and steal_ok and self.single_open(sp) and 8 <= sp.eff_bb <= 30 and \
                 (self.chip_resteal_gains(sp) if self.on["chipsteal"] else self.resteal_gains(sp)):
             return act_allin(sp)
         if sp.eff_bb <= self.short_bb:
