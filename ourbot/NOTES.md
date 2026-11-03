@@ -293,6 +293,27 @@ Our base and the shipped bot each played 3,000 paired tables.
   **Re-test, 3,000 paired tables:** shipped is now **+1.36 ± 1.22** against base, up from −4.03, with 19.9%
   wins. The remaining gain comes from the postflop `respect` lesson, which still applies after the discard.
 
+### 2026-11-03 11:05: PLO. Looser early play hurts; heads-up was the leak
+
+Profile over 400 shared tables: our bot played 11% VPIP, 8% PFR and 18% steals, and c-bet 46%.
+Every PLO builder converged on about 23% VPIP, 17% PFR and 40%+ steals, with c-bets of 48–94%.
+
+| Config, 3,000 paired PLO tables | Points | Δ | Wins | Heads-up reached → won |
+| :- | -: | -: | -: | :- |
+| base (house omaha()) | 26.10 | · | 0.2% | 12.9% → 2% of those |
+| plo (open the top 40/22/15% by position, c-bet 85%) | 24.50 | **−1.61 ± 0.84** | 0.6% | |
+| **plohu** (heads-up mode) | 26.52 | **+0.41 ± 0.15** | 1.3% | 12.9% → 10% of those |
+
+- **Matching the field's looseness hurts.** It adds early busts (7th/8th up from 12.7% to 20.7%)
+  without building chips. Off.
+- **The house Omaha game has no heads-up mode.** Heads-up it folded the small blind about 75%
+  of the time and called shoves with the top 9%. `plohu` plays the top 70% heads-up and calls all-ins
+  with the top 55%. It's a small, certain gain, and **on**. It changes only heads-up decisions, hence the tight interval.
+- **PLO is still our weakest variant.** We reach heads-up on half the average share of tables and
+  usually arrive short-stacked, having survived by folding. The real fix is building chips earlier
+  with equity-based Omaha play, which is beyond tonight's scope.
+  **If the event's variant is Omaha-like, build its strategy fresh on the day.**
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |

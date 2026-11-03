@@ -50,6 +50,9 @@ measure what it adds or costs:
     all-in with the top 55%.
   - Postflop: bet more and call wider.
 
+  The lab measured +0.41 +/- 0.15 points per table, with heads-up wins going
+  from 2% to 10% of those reached. It's on.
+
 The lab's verdicts so far (ourbot/NOTES.md) set the shipped switches.json:
 - shove20 is off: it cost about 1.2 points per table in hold'em.
 - chipsteal is on: with resteal and noflat it scored +7.5 +/- 1.5 points per
@@ -77,7 +80,7 @@ ICM_FROM = 4  # with chipev on, ICM applies only once this many players or fewer
 VOLUNTARY = ("check", "call", "raise", "fold")  # history also holds the "sb", "bb" and ante posts
 SWITCHES = ("resteal", "shove20", "noflat", "respect", "chipev", "chipsteal", "calib", "plo", "plohu")
 DEFAULTS = {"resteal": True, "shove20": False, "noflat": True, "respect": True, "chipev": False, "chipsteal": True,
-            "calib": False, "plo": False, "plohu": False}
+            "calib": False, "plo": False, "plohu": True}
 # plo_strength at these shares of random 4-card hands (the top x), from 20,000 samples
 PLO_TOP = {0.05: 0.682, 0.08: 0.618, 0.15: 0.500, 0.22: 0.427, 0.25: 0.405, 0.30: 0.361, 0.40: 0.295,
            0.55: 0.225, 0.70: 0.161, 0.90: 0.093}
