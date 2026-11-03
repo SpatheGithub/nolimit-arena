@@ -211,6 +211,29 @@ The short deck field is the latest bots of shortdeck-001 and the finished shortd
   postflop strength, or how hands play on a 20-card deck. Next: profile our base against
   royal-001's bots, to find where it loses.
 
+### 2026-11-03 06:57: royal diagnosis, and calib doesn't help
+
+Our bot was profiled in royal against royal-001's winner (b05) and 5 field bots over 400 shared
+tables, with `profile2.py` from the session scratchpad.
+
+| Bot | Points | VPIP | Folds to c-bet | Folds to river bet | Saw flop | Showdowns won |
+| :- | -: | -: | -: | -: | -: | -: |
+| ours (shipped) | 11.3 | 27% | 28% | 36% | 21% | 46% |
+| royal winner b05 | 22.6 | 39% | 51% | 68% | 35% | 57% |
+| other royal bots | 13–19 | 32–40% | 47–84% | 57–83% | 27–34% | 52–60% |
+
+- **Our bot calls too much postflop and loses at showdown.** With five ranks, every 6-card royal
+  hand holds at least a pair. The house strength scale, tuned on 52 cards, rates a pair as decent.
+- **It also plays too few hands preflop.** Equities run close when every card is broadway, and the
+  winner saw 35% of flops to our 21%.
+- **`calib` didn't help.** It shifts postflop strength by the variant's mean strength: royal +0.17
+  flop and +0.31 turn, short deck up to +0.14. Results over 3,000 paired tables: royal −0.78 ± 1.30,
+  short deck −1.31 ± 1.62. The shift makes the bot fold more, but also bet and c-bet less, and
+  aggression is what wins. It ships **off**.
+- **Royal stays an open problem.** A real fix would need postflop decisions from equity against
+  ranges, which is cheap to enumerate with 20 cards, plus looser preflop play in small decks.
+  That is a bigger change than one night allows.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |

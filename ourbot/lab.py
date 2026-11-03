@@ -14,6 +14,9 @@ Experiments:
   results there, plus shortdeck and royal.
 - icm: the shipped switches (base), against the same plus chipev, on every
   field.
+- robust: our base and the shipped bot against fields unlike our builders:
+  the house zoo alone (zoo), and the zoo plus the hold'em builder bots minus
+  the winners (mixed). Exploits can backfire against a field without the leak.
 - calib: the shipped switches with calib off (base) or on, in royal and short
   deck. calib calibrates postflop strength to small decks; on 52-card decks
   the offset is zero. chipev values shoves and calls in chips until 4 or fewer players are
@@ -62,7 +65,7 @@ from arena.referee.commands import archived_bots  # noqa: E402
 from arena.referee.event import EVENTS_ROOT  # noqa: E402
 from arena.tournament.card import load_card, settings_from_card  # noqa: E402
 from arena.tournament.play import derive  # noqa: E402
-from arena.tournament.tournament import Entry, run_tournament  # noqa: E402
+from arena.tournament.tournament import Entry, run_tournament, zoo_entries  # noqa: E402
 from ourbot.lessons.agent import DEFAULTS, SWITCHES  # noqa: E402
 
 BOT = os.path.join(HERE, "lessons")
@@ -70,13 +73,17 @@ RUNS = os.path.join(HERE, "runs")
 RESULTS = os.path.join(RUNS, "results.jsonl")
 LAB_MD = os.path.join(HERE, "LAB.md")
 LIVE_MARGIN_S = 150
-# field: (events whose latest bots make the field, event whose card is played, bots left out)
+# field: (events whose latest bots make the field, event whose card is played, bots left out,
+#         whether the house zoo joins the field)
 WINNERS = ("full-opus-001/b06/", "full-opus-002/b06/")
+HOLDEM = ["full-opus-001", "full-opus-002"]
 FIELDS = {
-    "nlhe": (["full-opus-001", "full-opus-002"], "full-opus-002", ()),
-    "nlhe-x": (["full-opus-001", "full-opus-002"], "full-opus-002", WINNERS),
-    "shortdeck": (["shortdeck-001", "shortdeck-002"], "shortdeck-002", ()),
-    "royal": (["royal-001"], "royal-001", ()),
+    "nlhe": (HOLDEM, "full-opus-002", (), False),
+    "nlhe-x": (HOLDEM, "full-opus-002", WINNERS, False),
+    "shortdeck": (["shortdeck-001", "shortdeck-002"], "shortdeck-002", (), False),
+    "royal": (["royal-001"], "royal-001", (), False),
+    "zoo": ([], "full-opus-002", (), True),
+    "mixed": (HOLDEM, "full-opus-002", WINNERS, True),
 }
 
 
@@ -92,6 +99,8 @@ def candidates(experiment: str) -> tuple[dict[str, str], list[str]]:
     """({config: bot dir}, default fields) for an experiment."""
     if experiment == "switches":
         return prepare(configs()), ["nlhe", "shortdeck", "royal"]
+    if experiment == "robust":
+        return prepare({"base": {k: False for k in SWITCHES}, "shipped": dict(DEFAULTS)}), ["zoo", "mixed"]
     if experiment == "calib":
         return prepare({"base": dict(DEFAULTS, calib=False), "calib": dict(DEFAULTS, calib=True)}), \
             ["royal", "shortdeck"]
@@ -177,8 +186,10 @@ def run(experiment: str, fields: list[str] | None, blocks: int, n_tables: int, w
     seen = done_keys()
     os.makedirs(RUNS, exist_ok=True)
     for field in fields or default_fields:
-        events, card_event, left_out = FIELDS[field]
-        pool = [e for e in archived_bots("event:" + ",".join(events)) if not e.name.startswith(left_out)]
+        events, card_event, left_out, with_zoo = FIELDS[field]
+        pool = [e for e in archived_bots("event:" + ",".join(events)) if not e.name.startswith(left_out)] \
+            if events else []
+        pool += zoo_entries() if with_zoo else []
         card = load_card(os.path.join(EVENTS_ROOT, card_event, "card.json"))
         settings = settings_from_card(card, hand_logs=False)
         print(f"{field}: {len(pool)} archived bots from {', '.join(events)}; card {card_event}", flush=True)
@@ -262,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ourbot.lab")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run")
-    p.add_argument("--experiment", default="switches", choices=("switches", "bases", "icm", "v2", "calib"))
+    p.add_argument("--experiment", default="switches",
+                   choices=("switches", "bases", "icm", "v2", "calib", "robust"))
     p.add_argument("--fields", help="comma-separated; default: the experiment's own")
     p.add_argument("--blocks", type=int, default=40)
     p.add_argument("--tables", type=int, default=50)
