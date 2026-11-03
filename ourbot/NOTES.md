@@ -360,6 +360,16 @@ With the two-card gate, the preflop lessons are off there, which leaves only the
 **The missing piece** is a re-steal priced for three-card hands: equity of the best two of three
 against ranges, by Monte Carlo. It's the same mechanism that took hold'em from −8 to level with the winner.
 
+### 2026-11-03 11:53: the re-steal alone with three hole cards (resteal3)
+
+3,000 paired tables against the crazy pineapple rerun's bots, standard points:
+- **Points:** −0.57 ± 1.51 against the shipped bot, within noise.
+- **Wins:** 16.1% against 13.5%, a **+2.6** point rise in win rate.
+
+That's the winners' trade: more 1st places, more busts. Under 100/60/40/… they cancel.
+**Ships off.** Turn it on for a three-card variant if the announced points table is top-heavy or
+winner-take-most, where the extra wins should outweigh the busts. That's untested; check it on the day.
+
 ## What has won so far (events)
 
 | Event | Variant, points | Winner (starting idea) | P(1st) | Trust |
